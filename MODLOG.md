@@ -899,3 +899,10 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   Mock (?SpectatorOnly=1, 3 bots): before - "Press Fire to View a different Player" bar; VRTapFire -> "spectating
   xPawn2", bar shows Now Viewing / Divisor / score 1 under the chase view.
 - Typing prompt in VR (user: "T opens say, visible in the window but not in 3D"): HUD.PostRender draws DrawTypingPrompt on the window only. VRHUD.DrawVRMessages now draws the same line ("(>" Say ... chr(4) cursor, ConsoleColor) in the free line under the console messages, also under the original scoreboard. Mock ("talk"): "(> Say _" above the health row.
+- Menu panel edges (user: "the cropping of some in-game menus and dialogs leaves their background visible at the
+  edges"): the crop was the active page's bounds plus a 1% margin, which showed the black around an in-game menu as
+  an uneven frame and, for dialogs (UT2K4QuitPage: a full-width strip), the darkened menu behind as strips at the
+  top and bottom. Now exactly the page bounds, and in a game (not the main menus' dark room or the big screen) a
+  ps_2_0 key shader makes the pure black around the menu see-through (alpha 0 below ~2/255, 1 from ~6/255), so the
+  bevelled corners show the game. The cursor and beam are drawn without it. CompilePS shared with the scoreboard
+  shader. Mock: Esc menu and "Are you sure you wish to quit?" without a frame, corners transparent.

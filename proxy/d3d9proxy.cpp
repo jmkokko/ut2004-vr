@@ -513,9 +513,10 @@ static void PollGame()
 			float r[4];
 			if (sscanf(b + 1, "%f %f %f %f", &r[0], &r[1], &r[2], &r[3]) == 4 && r[2] > 0.05f && r[3] > 0.05f)
 			{
-				// a little margin; keep inside the window
-				r[0] = std::max(0.0f, r[0] - 0.01f); r[1] = std::max(0.0f, r[1] - 0.01f);
-				r[2] = std::min(1.0f - r[0], r[2] + 0.02f); r[3] = std::min(1.0f - r[1], r[3] + 0.02f);
+				// exactly the page (a margin showed the page behind a dialog, or the black around an in-game menu, as a
+				// frame); keep inside the window
+				r[0] = std::max(0.0f, r[0]); r[1] = std::max(0.0f, r[1]);
+				r[2] = std::min(1.0f - r[0], r[2]); r[3] = std::min(1.0f - r[1], r[3]);
 				memcpy(g_menuRect, r, sizeof r);
 			}
 		}
@@ -640,27 +641,57 @@ static void ScoreRelease()
 	g_sbW = g_sbH = 0;
 }
 
-// the pixel shader that turns the pair into colour + alpha, compiled at runtime (d3dcompiler_47 ships with Windows)
+// pixel shaders compiled at runtime (d3dcompiler_47 ships with Windows)
+static IDirect3DPixelShader9* CompilePS(IDirect3DDevice9* dev, const char* name, const char* src)
+{
+	typedef HRESULT(WINAPI* PFN_Compile)(LPCVOID, SIZE_T, LPCSTR, const void*, void*, LPCSTR, LPCSTR, UINT, UINT, ID3DBlob**, ID3DBlob**);
+	static PFN_Compile compile = nullptr;
+	static bool tried = false;
+	if (!tried)
+	{
+		tried = true;
+		HMODULE m = LoadLibraryA("d3dcompiler_47.dll");
+		compile = m ? (PFN_Compile)GetProcAddress(m, "D3DCompile") : nullptr;
+		if (!compile) Log("no d3dcompiler_47.dll: no scoreboard panel, menus opaque");
+	}
+	if (!compile) return nullptr;
+	IDirect3DPixelShader9* ps = nullptr;
+	ID3DBlob* code = nullptr; ID3DBlob* err = nullptr;
+	HRESULT hr = compile(src, strlen(src), name, nullptr, nullptr, "main", "ps_2_0", 0, 0, &code, &err);
+	if (SUCCEEDED(hr) && code) dev->CreatePixelShader((const DWORD*)code->GetBufferPointer(), &ps);
+	Log("%s shader: %s", name, ps ? "ok" : (err ? (const char*)err->GetBufferPointer() : "failed"));
+	if (code) code->Release();
+	if (err) err->Release();
+	return ps;
+}
+
+// the scoreboard pair -> colour + alpha
 static void ScoreShader(IDirect3DDevice9* dev)
 {
 	if (g_sbPS || g_sbPSTried) return;
 	g_sbPSTried = true;
-	typedef HRESULT(WINAPI* PFN_Compile)(LPCVOID, SIZE_T, LPCSTR, const void*, void*, LPCSTR, LPCSTR, UINT, UINT, ID3DBlob**, ID3DBlob**);
-	HMODULE m = LoadLibraryA("d3dcompiler_47.dll");
-	PFN_Compile compile = m ? (PFN_Compile)GetProcAddress(m, "D3DCompile") : nullptr;
-	if (!compile) { Log("scoreboard: no d3dcompiler_47.dll, scoreboard stays off"); return; }
-	static const char src[] =
+	g_sbPS = CompilePS(dev, "scoreboard",
 		"sampler B : register(s0); sampler W : register(s1);\n"
 		"float4 main(float2 uv : TEXCOORD0) : COLOR {\n"
 		"  float3 b = tex2D(B, uv).rgb, w = tex2D(W, uv).rgb;\n"
 		"  float a = saturate(1 - dot(w - b, float3(0.3333, 0.3333, 0.3334)));\n"
-		"  return float4(b, a); }\n";
-	ID3DBlob* code = nullptr; ID3DBlob* err = nullptr;
-	HRESULT hr = compile(src, sizeof src - 1, "scoreboard", nullptr, nullptr, "main", "ps_2_0", 0, 0, &code, &err);
-	if (SUCCEEDED(hr) && code) hr = dev->CreatePixelShader((const DWORD*)code->GetBufferPointer(), &g_sbPS);
-	Log("scoreboard shader: %s", g_sbPS ? "ok" : (err ? (const char*)err->GetBufferPointer() : "failed"));
-	if (code) code->Release();
-	if (err) err->Release();
+		"  return float4(b, a); }\n");
+}
+
+// in-game menus are drawn on pure black: that black becomes see-through (the bevelled corners, the edges of the
+// crop), so the panel has the menu's own shape; anything darker than ~2/255 is gone, fully opaque from ~6/255
+static IDirect3DPixelShader9* g_keyPS = nullptr;
+static bool g_keyPSTried = false;
+static void KeyShader(IDirect3DDevice9* dev)
+{
+	if (g_keyPS || g_keyPSTried) return;
+	g_keyPSTried = true;
+	g_keyPS = CompilePS(dev, "menu key",
+		"sampler P : register(s0);\n"
+		"float4 main(float2 uv : TEXCOORD0) : COLOR {\n"
+		"  float4 c = tex2D(P, uv);\n"
+		"  float m = max(c.r, max(c.g, c.b));\n"
+		"  return float4(c.rgb, saturate((m - 0.008) * 60)); }\n");
 }
 
 // before Present: a capture frame goes into its texture and the window gets the previous picture back
@@ -763,7 +794,7 @@ struct PanelVert { float x, y, z, rhw, u, v; };
 
 
 // draw the panel into one eye's render target, projected with the pose this frame was rendered with
-static void DrawPanelInEye(IDirect3DDevice9* dev, IDirect3DTexture9* eyeTex, int e, bool score = false)
+static void DrawPanelInEye(IDirect3DDevice9* dev, IDirect3DTexture9* eyeTex, int e, bool score = false, bool key = false)
 {
 	vr::HmdMatrix34_t eh = g_hmd ? g_hmd->GetEyeToHeadTransform((vr::EVREye)e) : vr::HmdMatrix34_t{};
 	if (!g_hmd) { memset(&eh, 0, sizeof eh); eh.m[0][0] = eh.m[1][1] = eh.m[2][2] = 1; eh.m[0][3] = e ? 0.032f : -0.032f; }
@@ -827,6 +858,14 @@ static void DrawPanelInEye(IDirect3DDevice9* dev, IDirect3DTexture9* eyeTex, int
 	dev->SetSamplerState(0, D3DSAMP_MAXMIPLEVEL, 0);
 	dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
 	dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+	if (key && !score && g_keyPS)
+	{
+		dev->SetPixelShader(g_keyPS);
+		dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+		dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		dev->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+	}
 	if (score)
 	{
 		// the scoreboard: colour (premultiplied) and alpha from the black/white pair, blended over the game
@@ -860,7 +899,9 @@ static void DrawPanelInEye(IDirect3DDevice9* dev, IDirect3DTexture9* eyeTex, int
 			c0 = c1;
 		}
 		if (score) { dev->EndScene(); goto done; }
-		// pointer beam and cursor: untextured, diffuse colour
+		// pointer beam and cursor: untextured, diffuse colour, opaque (not through the menu key)
+		dev->SetPixelShader(nullptr);
+		dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 		dev->SetTexture(0, nullptr);
 		dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
 		dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
@@ -1174,10 +1215,13 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 		if (g_panelPlaced && g_panelSeated && !g_panelSeatedWorn && g_worn) g_panelPlaced = false;
 		if (!g_panelPlaced) PlacePanel(standalone && !g_panelRecentred);
 		g_panelRecentred = false;
+		// in a game the menu is on black (VRHUD): key it out; the main menus' own backdrop stays
+		bool key = !standalone && !g_screenMode;
+		if (key) KeyShader(dev);
 		if (CapturePanel(dev))
 		{
-			DrawPanelInEye(dev, eyeTex[0], 0);
-			DrawPanelInEye(dev, eyeTex[1], 1);
+			DrawPanelInEye(dev, eyeTex[0], 0, false, key);
+			DrawPanelInEye(dev, eyeTex[1], 1, false, key);
 		}
 	}
 	// UT's scoreboard / spectator bar: placed in front of you when it comes up, and stays there in the room while it is up
