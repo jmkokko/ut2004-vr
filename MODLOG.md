@@ -898,3 +898,4 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   ServerViewSelf, with a 0.3 s guard against the exec path seeing the same click. Debug: VRTapFire, VRSpecNext.
   Mock (?SpectatorOnly=1, 3 bots): before - "Press Fire to View a different Player" bar; VRTapFire -> "spectating
   xPawn2", bar shows Now Viewing / Divisor / score 1 under the chase view.
+- Typing prompt in VR (user: "T opens say, visible in the window but not in 3D"): HUD.PostRender draws DrawTypingPrompt on the window only. VRHUD.DrawVRMessages now draws the same line ("(>" Say ... chr(4) cursor, ConsoleColor) in the free line under the console messages, also under the original scoreboard. Mock ("talk"): "(> Say _" above the health row.

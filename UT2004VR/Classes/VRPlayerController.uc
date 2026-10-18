@@ -3503,7 +3503,9 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 	// UT's own scoreboard is up (a panel from the proxy): as in 2D, no HUD under it, messages only if it wants them
 	if ( VRHUD(myHUD) != None && VRHUD(myHUD).ScoreFrame > 0 && VRHUD(myHUD).OverlayKind == 1 )
 	{
-		if ( bVRMessages && myHUD.ScoreBoard != None && myHUD.ScoreBoard.bDisplayMessages )
+		// (the typing prompt is drawn with the messages: shown under the scoreboard too)
+		if ( bVRMessages && ((myHUD.ScoreBoard != None && myHUD.ScoreBoard.bDisplayMessages)
+			|| (myHUD.PlayerConsole != None && myHUD.PlayerConsole.bTyping)) )
 			VRHUD(myHUD).DrawVRMessages(self, Tex, Loc, Rot);
 		return;
 	}

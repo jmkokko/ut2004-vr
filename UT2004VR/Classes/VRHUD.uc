@@ -254,6 +254,7 @@ simulated function DrawVRMessages(VRPlayerController PC, ScriptedTexture Tex, ve
 	local Font F;
 	local color C;
 	local class<LocalMessage> M;
+	local bool bTyping;
 
 	if ( MsgCullTime != Level.TimeSeconds )
 	{
@@ -312,7 +313,8 @@ simulated function DrawVRMessages(VRPlayerController PC, ScriptedTexture Tex, ve
 	for ( Count = 0; Count < ConsoleMessageCount && Count < ArrayCount(TextMessages); Count++ )
 		if ( TextMessages[Count].Text == "" )
 			break;
-	if ( Count == 0 || !PC.MsgPoint(Tex, Loc, Rot, ConsoleMessagePosX, ConsoleMessagePosY, PX, PY) )
+	bTyping = PlayerConsole != None && PlayerConsole.bTyping;
+	if ( (Count == 0 && !bTyping) || !PC.MsgPoint(Tex, Loc, Rot, ConsoleMessagePosX, ConsoleMessagePosY, PX, PY) )
 		return;
 	F = LoadFont(Clamp(ConsoleFontSize + 6 - Steps, 0, 8));
 	if ( F == None )
@@ -321,6 +323,11 @@ simulated function DrawVRMessages(VRPlayerController PC, ScriptedTexture Tex, ve
 	Below = PY - Ht * (Count + 1);   // one free line under them, where UT puts the typing prompt
 	for ( i = 0; i < Count; i++ )
 		PC.MsgText(Tex, PX, Below + Ht * i, TextMessages[i].Text, F, TextMessages[i].TextColor);
+	// the typing prompt (T: say, Y: team say, the console's own line), as HUD.DrawTypingPrompt draws it
+	if ( bTyping )
+		PC.MsgText(Tex, PX, PY - Ht, "(>" @ Left(PlayerConsole.TypedStr, PlayerConsole.TypedStrPos) $ Chr(4)
+			$ Eval(PlayerConsole.TypedStrPos < Len(PlayerConsole.TypedStr), Mid(PlayerConsole.TypedStr, PlayerConsole.TypedStrPos), "_"),
+			F, ConsoleColor);
 }
 
 
