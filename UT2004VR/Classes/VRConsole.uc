@@ -172,6 +172,12 @@ exec function VRStart(string URL)
 	DelayedConsoleCommand("start " $ URL);
 }
 
+// debug: open a menu page by class, e.g. VROpenMenu GUI2K4.UT2K4QuitPage (what Esc does in the main menus)
+exec function VROpenMenu(string MenuClass)
+{
+	GUIController(ViewportOwner.GUIController).OpenMenu(MenuClass);
+}
+
 exec function VRMenuDump()
 {
 	class'VRMenu'.static.Dump(GUIController(ViewportOwner.GUIController));

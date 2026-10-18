@@ -906,3 +906,9 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   ps_2_0 key shader makes the pure black around the menu see-through (alpha 0 below ~2/255, 1 from ~6/255), so the
   bevelled corners show the game. The cursor and beam are drawn without it. CompilePS shared with the scoreboard
   shader. Mock: Esc menu and "Are you sure you wish to quit?" without a frame, corners transparent.
+- Menu edges, part 2 (user: "still parts of the background at the edges, especially the bottom pixels, Esc menu
+  and Exit dialog"): the page art ends in small corner tabs with gaps between them, and a dialog's gaps showed the
+  greyed page under it (in the main menus also the background art), which no key can remove. VRMenu now draws a
+  dialog alone while it is on top (its GUIPage.bRenderWorld off, put back after; G.Count() > 1) and says so in "R
+  ... 1"; the proxy keys a dialog in the main menus too. Mock: in-game quit dialog alone in the window, eyes keep
+  rendering behind the panel; main-menu quit dialog (debug VRConsole.VROpenMenu) alone in the dark room, clean edges.

@@ -480,6 +480,7 @@ static bool g_beamOK = false;                     // controller ray: tip -> hit 
 static double g_standaloneUntil = 0;
 static bool g_standaloneScreen = false;   // "M 2": a game without VR (the window on a big screen); "M 1": menus
 static void ScorePacket(const char* b);  // "S <kind> <top>"/"S 0" from the game (the scoreboard module below)
+static bool g_menuDialog = false;      // the menu page is a dialog drawn alone on black ("R ... 1")
 static double g_vrGameAt = 0;            // "M 0": a VR game renders its eyes
 static IDirect3DTexture9* g_ownEye[2] = {};
 static HANDLE g_ownShare[2] = {};
@@ -511,8 +512,10 @@ static void PollGame()
 		if (b[0] == 'R')
 		{
 			float r[4];
-			if (sscanf(b + 1, "%f %f %f %f", &r[0], &r[1], &r[2], &r[3]) == 4 && r[2] > 0.05f && r[3] > 0.05f)
+			int dlg = 0;
+			if (sscanf(b + 1, "%f %f %f %f %d", &r[0], &r[1], &r[2], &r[3], &dlg) >= 4 && r[2] > 0.05f && r[3] > 0.05f)
 			{
+				g_menuDialog = dlg != 0;   // a dialog drawn alone on black: keyed in the main menus too
 				// exactly the page (a margin showed the page behind a dialog, or the black around an in-game menu, as a
 				// frame); keep inside the window
 				r[0] = std::max(0.0f, r[0]); r[1] = std::max(0.0f, r[1]);
@@ -1215,8 +1218,9 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 		if (g_panelPlaced && g_panelSeated && !g_panelSeatedWorn && g_worn) g_panelPlaced = false;
 		if (!g_panelPlaced) PlacePanel(standalone && !g_panelRecentred);
 		g_panelRecentred = false;
-		// in a game the menu is on black (VRHUD): key it out; the main menus' own backdrop stays
-		bool key = !standalone && !g_screenMode;
+		// in a game the menu is on black (VRHUD): key it out; so is a dialog drawn alone; the main menus' own
+		// backdrop stays
+		bool key = (!standalone || g_menuDialog) && !g_screenMode;
 		if (key) KeyShader(dev);
 		if (CapturePanel(dev))
 		{

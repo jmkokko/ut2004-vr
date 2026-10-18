@@ -13,6 +13,8 @@ var bool  bOldTrigger;
 var GUIComponent PressedCtl;     // control under the pointer when the trigger went down (gets drags, release, click)
 var float LastX, LastY;
 var float NextMsg;
+var GUIPage SoloPage;            // the dialog drawn alone (bRenderWorld off), and its own setting to put back
+var bool bSoloSaved;
 
 static function float WinW(GUIController G) { return float(G.ResX); }
 static function float WinH(GUIController G) { return float(G.ResY); }
@@ -54,9 +56,29 @@ function Update(VRLink Link, GUIController G, bool bKeyboardMouse, bool bTrigger
 	if ( bUp && G.ResX > 0 && G.ResY > 0 )
 	{
 		Link.ToProxy("Q " $ (G.MouseX / WinW(G)) $ " " $ (G.MouseY / WinH(G)));
+		// the active page's bounds, and 1 when it's a dialog over another page: then it is drawn alone (UT's
+		// bRenderWorld off: nothing behind it, not the greyed page under it), so the black around it, also in the
+		// gaps between its corner tabs, can be keyed out (in a game everything around a menu is black anyway)
 		if ( G.ActivePage != None && G.ActivePage.ActualWidth() > 16 && G.ActivePage.ActualHeight() > 16 )
 			Link.ToProxy("R " $ (G.ActivePage.ActualLeft() / WinW(G)) $ " " $ (G.ActivePage.ActualTop() / WinH(G)) $ " "
-				$ (G.ActivePage.ActualWidth() / WinW(G)) $ " " $ (G.ActivePage.ActualHeight() / WinH(G)));
+				$ (G.ActivePage.ActualWidth() / WinW(G)) $ " " $ (G.ActivePage.ActualHeight() / WinH(G)) $ " " $ int(G.Count() > 1));
+	}
+	DrawAlone(G, bUp && G.ActivePage != None && G.Count() > 1);
+}
+
+// a dialog over another page: nothing behind it is drawn while it is on top; the page gets its setting back after
+function DrawAlone(GUIController G, bool bWant)
+{
+	if ( SoloPage != None && (!bWant || SoloPage != G.ActivePage) )
+	{
+		SoloPage.bRenderWorld = bSoloSaved;
+		SoloPage = None;
+	}
+	if ( bWant && SoloPage == None )
+	{
+		SoloPage = G.ActivePage;
+		bSoloSaved = SoloPage.bRenderWorld;
+		SoloPage.bRenderWorld = false;
 	}
 }
 
