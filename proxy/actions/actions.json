@@ -1,0 +1,103 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "knuckles",
+      "binding_url": "bindings_knuckles.json"
+    },
+    {
+      "controller_type": "oculus_touch",
+      "binding_url": "bindings_oculus_touch.json"
+    },
+    {
+      "controller_type": "vive_controller",
+      "binding_url": "bindings_vive_controller.json"
+    },
+    {
+      "controller_type": "holographic_controller",
+      "binding_url": "bindings_holographic_controller.json"
+    },
+    {
+      "controller_type": "hpmotioncontroller",
+      "binding_url": "bindings_hpmotioncontroller.json"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/main/in/move",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/main/in/turn",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/main/in/jump",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/crouch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/menu",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/pose_left",
+      "type": "pose"
+    },
+    {
+      "name": "/actions/main/in/pose_right",
+      "type": "pose"
+    },
+    {
+      "name": "/actions/main/in/fire",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/altfire",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/nextweapon",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/prevweapon",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/dodge",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/scoreboard",
+      "type": "boolean"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/main",
+      "usage": "leftright"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/main": "Walking",
+      "/actions/main/in/move": "Move (smooth locomotion)",
+      "/actions/main/in/turn": "Turn / teleport (push forward to aim)",
+      "/actions/main/in/jump": "Jump (stick near centre)",
+      "/actions/main/in/crouch": "Crouch (hold)",
+      "/actions/main/in/menu": "Menu / Esc (hold: recenter)",
+      "/actions/main/in/pose_left": "Left hand",
+      "/actions/main/in/pose_right": "Right hand",
+      "/actions/main/in/fire": "Fire",
+      "/actions/main/in/altfire": "Alt fire",
+      "/actions/main/in/nextweapon": "Next weapon",
+      "/actions/main/in/prevweapon": "Previous weapon",
+      "/actions/main/in/dodge": "Dodge (toward the move stick)",
+      "/actions/main/in/scoreboard": "Scoreboard toggle"
+    }
+  ]
+}

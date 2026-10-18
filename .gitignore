@@ -1,0 +1,7 @@
+build/
+*.obj
+*.pdb
+*.ilk
+*.exp
+third_party/openvr/
+__pycache__/
