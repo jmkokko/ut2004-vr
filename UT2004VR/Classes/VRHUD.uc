@@ -12,7 +12,9 @@ class VRHUD extends HudCDeathMatch;
 #exec TEXTURE IMPORT NAME=VRVignette FILE=Textures\Vignette.tga MIPS=OFF ALPHA=1 LODSET=LODSET_Interface UCLAMPMODE=CLAMP VCLAMPMODE=CLAMP
 
 var float MsgCullTime;              // Level.TimeSeconds the message queues were last aged
-var int ScoreFrame;                 // frames the original scoreboard has been up (every ScoreCapturePeriod: a capture pair)
+var int ScoreFrame;                 // frames an original overlay has been up (every ScoreCapturePeriod: a capture pair)
+var int OverlayKind;                // that overlay: 1 UT's scoreboard, 2 UT's spectator bar (DrawSpectatingHud)
+var float OverlayTop;               // the window share the overlay covers, from the top (0..1; the bar: its top edge)
 var int ScoreCapturePeriod;         // frames between scoreboard captures for the headset (two frames each)
 var float ScoreSaidAt;              // "S 1" to the proxy (it watches for the capture frames while that keeps coming)
 
@@ -21,29 +23,37 @@ simulated event PostRender(Canvas C)
 	local VRPlayerController PC;
 	local ScriptedTexture T;
 	local float HX, VY, PxPerTan, CX, CY;
+	local int K;
 
 	PC = VRPlayerController(PlayerOwner);
-	if ( WantVRScoreboard(PC) )
+	K = VROverlay(PC);
+	if ( K != OverlayKind )
+		ScoreFrame = 0;
+	OverlayKind = K;
+	if ( K > 0 )
 	{
-		// UT's own scoreboard for the headset (the desktop mirror shows it too: it's in the eye picture): every ScoreCapturePeriod frames it is drawn alone, over black and
-		// then over white, with a marker the proxy recognises; the proxy recovers its transparency from the pair
-		// (alpha = 1 - (white - black)) and shows it on a panel in front of you. The proxy puts the previous
-		// window picture back for those two frames, so the desktop doesn't flash.
+		// UT's own scoreboard or spectator bar for the headset (the desktop mirror shows it too: it's in the eye
+		// picture). Every ScoreCapturePeriod frames it is drawn alone, over black and then over white, with a marker
+		// the proxy recognises; the proxy recovers its transparency from the pair (alpha = 1 - (white - black)) and
+		// shows it on a panel in front of you (the spectator bar: only its strip, lower down). The proxy puts the
+		// previous window picture back for those two frames, so the desktop doesn't flash.
 		ScoreFrame++;
-		if ( PC.Link != None && (Level.TimeSeconds - ScoreSaidAt > 0.25 || Level.TimeSeconds < ScoreSaidAt) )
-		{
-			ScoreSaidAt = Level.TimeSeconds;
-			PC.Link.ToProxy("S 1");
-		}
 		if ( ScoreFrame % ScoreCapturePeriod == 1 || ScoreFrame % ScoreCapturePeriod == 2 )
 		{
 			DrawScoreCapture(C, ScoreFrame % ScoreCapturePeriod == 2);
+			// "S <kind> <top>": what is up and the window share it covers
+			if ( PC.Link != None && (Level.TimeSeconds - ScoreSaidAt > 0.25 || Level.TimeSeconds < ScoreSaidAt) )
+			{
+				ScoreSaidAt = Level.TimeSeconds;
+				PC.Link.ToProxy("S " $ K $ " " $ OverlayTop);
+			}
 			return;
 		}
 	}
-	else if ( ScoreFrame > 0 )
+	else if ( ScoreFrame > 0 || ScoreSaidAt > 0 )
 	{
 		ScoreFrame = 0;
+		ScoreSaidAt = 0;
 		if ( PC != None && PC.Link != None )
 			PC.Link.ToProxy("S 0");
 	}
@@ -128,15 +138,21 @@ simulated function MirrorFitHud(VRPlayerController PC, Canvas C, out float HX, o
 	}
 }
 
-// the original scoreboard in the headset: shown while UT's own show-scores is on (also while dead) or the VR
-// scoreboard button / VRScores; bVRScoreboardOriginal=False keeps the drawn VR HUD scoreboard instead
-simulated function bool WantVRScoreboard(VRPlayerController PC)
+// UT's own overlays in the headset: 1 the scoreboard, while UT's own show-scores is on (also while dead) or the VR
+// scoreboard button / VRScores; 2 the spectator bar while spectating; 0 none. bVRScoreboardOriginal=False keeps
+// the drawn VR HUD versions instead.
+simulated function int VROverlay(VRPlayerController PC)
 {
-	return PC != None && PC.VRActive() && PC.bVRScoreboardOriginal && ScoreBoard != None && !PC.bMenuOpen
-		&& !PC.IsCinematic() && (bShowScoreBoard || PC.bShowVRScores);
+	if ( PC == None || !PC.VRActive() || !PC.bVRScoreboardOriginal || PC.bMenuOpen || PC.IsCinematic() )
+		return 0;
+	if ( ScoreBoard != None && (bShowScoreBoard || PC.bShowVRScores) )
+		return 1;
+	if ( PC.IsVRSpectating() )
+		return 2;
+	return 0;
 }
 
-// one capture frame: the scoreboard alone on black (0) or white (1), and a two-pixel marker at the bottom right
+// one capture frame: the overlay alone on black (0) or white (1), and a two-pixel marker at the bottom right
 // (the top left gets the eye-render tiles VRMirrorInteraction draws last)
 simulated function DrawScoreCapture(Canvas C, bool bWhite)
 {
@@ -153,7 +169,16 @@ simulated function DrawScoreCapture(Canvas C, bool bWhite)
 	C.SetPos(0, 0);
 	C.DrawTile(Texture'Engine.WhiteSquareTexture', C.ClipX, C.ClipY, 0, 0, 2, 2);
 	C.Reset();
-	ScoreBoard.DrawScoreboard(C);
+	if ( OverlayKind == 2 )
+	{
+		DrawSpectatingHud(C);
+		OverlayTop = SpectatorBarTop(C) / C.ClipY;
+	}
+	else
+	{
+		ScoreBoard.DrawScoreboard(C);
+		OverlayTop = 0;
+	}
 	// marker: black frame magenta, green; white frame cyan, red (the proxy checks both pixels)
 	C.Reset();
 	C.Style = ERenderStyle.STY_Normal;
@@ -168,6 +193,21 @@ simulated function DrawScoreCapture(Canvas C, bool bWhite)
 	C.DrawColor = K;
 	C.SetPos(C.ClipX - 1, C.ClipY - 1);
 	C.DrawTile(Texture'Engine.WhiteSquareTexture', 1, 1, 0, 0, 2, 2);
+}
+
+// the top of what DrawSpectatingHud draws (its layout: the bar above the bottom edge, the LMS logo poking 8 px above
+// it, the tag line one console line above that), with a little room
+simulated function float SpectatorBarTop(Canvas C)
+{
+	local float XL, MedH, SmallH, Full, Top;
+
+	C.Font = GetMediumFontFor(C);
+	C.StrLen("W", XL, MedH);
+	C.Font = GetConsoleFont(C);
+	C.StrLen("W", XL, SmallH);
+	Full = MedH + SmallH;
+	Top = C.ClipY - 8 - Full;
+	return FMax(0, FMin(Top - 8, Top - 3 - SmallH) - 6);
 }
 
 // UT's game messages in VR (see VRPlayerController.MsgPoint): HudBase only draws its two queues from the 2D

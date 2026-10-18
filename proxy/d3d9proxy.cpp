@@ -86,6 +86,7 @@ static bool g_wantEx = true;      // GPUShare=1 (default): run the game on D3D9E
 static bool g_isEx = false;       // the device really is D3D9Ex   // DumpEyes=1: write UT2004VR_eye0/1.bmp at frame 400
 static float g_panelDist = 0.95f, g_panelWidth = 1.6f;   // PanelDistance, PanelWidth (m): the menu panel
 static float g_sbDist = 1.0f, g_sbWidth = 1.5f;   // ScoreboardDistance, ScoreboardWidth (m): UT's scoreboard panel
+static float g_specDist = 1.0f, g_specWidth = 1.3f, g_specDrop = 0.3f;   // SpectatorBarDistance/Width/Drop (m): UT's spectator bar, below eye level
 static float g_followDeg = 0;   // PanelFollowDeg: main menus, look this far away for 1.5 s and the panel comes in front of you (0 off)
 static float g_curve = 0.6f;    // PanelCurvature: 0 flat, 1 a cylinder centred on your head (radius = distance / this)
 // standalone without a menu (a game that runs without VR, e.g. on a server): the whole window on a big screen
@@ -123,6 +124,9 @@ static void ReadConfig()
 	if (GetPrivateProfileStringA("VR", "PanelWidth", "", buf, sizeof buf, ini.c_str())) g_panelWidth = std::max(0.4f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScoreboardDistance", "", buf, sizeof buf, ini.c_str())) g_sbDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScoreboardWidth", "", buf, sizeof buf, ini.c_str())) g_sbWidth = std::max(0.3f, std::min(4.0f, (float)atof(buf)));
+	if (GetPrivateProfileStringA("VR", "SpectatorBarDistance", "", buf, sizeof buf, ini.c_str())) g_specDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
+	if (GetPrivateProfileStringA("VR", "SpectatorBarWidth", "", buf, sizeof buf, ini.c_str())) g_specWidth = std::max(0.3f, std::min(4.0f, (float)atof(buf)));
+	if (GetPrivateProfileStringA("VR", "SpectatorBarDrop", "", buf, sizeof buf, ini.c_str())) g_specDrop = std::max(-1.0f, std::min(1.5f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "PanelFollowDeg", "", buf, sizeof buf, ini.c_str())) g_followDeg = std::max(0.0f, std::min(170.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "PanelCurvature", "", buf, sizeof buf, ini.c_str())) g_curve = std::max(0.0f, std::min(1.0f, (float)atof(buf)));
 	if (g_renderScale < 0.2f || g_renderScale > 2.0f) g_renderScale = 1.0f;
@@ -475,7 +479,7 @@ static bool g_beamOK = false;                     // controller ray: tip -> hit 
 // itself, a dark room with the menu panel, into its own two eye targets
 static double g_standaloneUntil = 0;
 static bool g_standaloneScreen = false;   // "M 2": a game without VR (the window on a big screen); "M 1": menus
-static void ScorePacket(bool on);       // "S 1"/"S 0" from the game (the scoreboard module below)
+static void ScorePacket(const char* b);  // "S <kind> <top>"/"S 0" from the game (the scoreboard module below)
 static double g_vrGameAt = 0;            // "M 0": a VR game renders its eyes
 static IDirect3DTexture9* g_ownEye[2] = {};
 static HANDLE g_ownShare[2] = {};
@@ -528,7 +532,7 @@ static void PollGame()
 				g_vrGameAt = 0;   // the latest word wins (a leaving VR game's last "M 0" made the view flip)
 			}
 		}
-		if (b[0] == 'S') ScorePacket(b[2] == '1');
+		if (b[0] == 'S') ScorePacket(b);
 		if (b[0] == 'P')
 		{
 			bool open = b[2] == '1';
@@ -559,7 +563,9 @@ static bool SeatedPose(vr::HmdMatrix34_t& m)
 }
 static bool g_worn = false;
 static bool g_panelRecentred = false;
-static bool g_placingScore = false;   // PlacePanel for the scoreboard (its own distance)
+static bool g_placingScore = false;
+static int g_sbKind = 0;      // 1 UT's scoreboard, 2 UT's spectator bar
+static float g_sbTop = 0;     // the window share it covers, from the top (0..1): the panel shows only that strip   // PlacePanel for the scoreboard (its own distance)
 static bool g_panelSeated = false, g_panelSeatedWorn = false;   // placed facing the calibration; the headset was worn then   // the next placement follows the headset (you looked away from the panel)
 
 // the panel in front of a pose: the headset's, or (bSeated) the seated calibration - the main menus at startup
@@ -577,8 +583,9 @@ static void PlacePanel(bool bSeated = false)
 	float f[3] = { -m.m[0][2], 0, -m.m[2][2] };            // forward, flattened
 	float l = sqrtf(f[0] * f[0] + f[2] * f[2]); if (l < 1e-3f) { f[0] = 0; f[2] = -1; l = 1; }
 	f[0] /= l; f[2] /= l;
-	float dist = g_placingScore ? g_sbDist : g_screenMode ? g_screenDist : g_panelDist;
+	float dist = g_placingScore ? (g_sbKind == 2 ? g_specDist : g_sbDist) : g_screenMode ? g_screenDist : g_panelDist;
 	g_pC[0] = at.m[0][3] + f[0] * dist; g_pC[1] = at.m[1][3]; g_pC[2] = at.m[2][3] + f[2] * dist;
+	if (g_placingScore && g_sbKind == 2) g_pC[1] -= g_specDrop;   // the spectator bar: below eye level, like on screen
 	g_pR[0] = -f[2]; g_pR[1] = 0; g_pR[2] = f[0];            // forward x up(0,1,0)
 	g_pU[0] = 0; g_pU[1] = 1; g_pU[2] = 0;
 	g_pN[0] = -f[0]; g_pN[1] = 0; g_pN[2] = -f[2];          // faces the viewer
@@ -603,10 +610,22 @@ static IDirect3DSurface9* g_sbMarkRT = nullptr;   // 2x1 copy of the marker corn
 static IDirect3DSurface9* g_sbMarkSys = nullptr;
 static IDirect3DPixelShader9* g_sbPS = nullptr;
 
-static void ScorePacket(bool on)
+
+static void ScorePacket(const char* b)
 {
-	if (on) { if (Now() - g_sbAt > 1000) Log("scoreboard up t=%.0f", Now()); g_sbAt = Now(); }
-	else { if (g_sbAt > 0) Log("scoreboard down t=%.0f", Now()); g_sbAt = 0; g_sbHave[0] = g_sbHave[1] = false; }
+	int kind = atoi(b + 2);
+	const char* sp = strchr(b + 2, ' ');
+	float top = sp ? std::max(0.0f, std::min(0.95f, (float)atof(sp + 1))) : 0.0f;
+	if (kind <= 0)
+	{
+		if (g_sbAt > 0) Log("overlay down t=%.0f", Now());
+		g_sbAt = 0; g_sbKind = 0; g_sbHave[0] = g_sbHave[1] = false;
+		return;
+	}
+	// another overlay (scoreboard <-> spectator bar): new pictures, placed again
+	if (kind != g_sbKind) { g_sbHave[0] = g_sbHave[1] = false; g_sbPlaced = false; }
+	if (Now() - g_sbAt > 1000 || kind != g_sbKind) Log("overlay %s up (top %.3f) t=%.0f", kind == 2 ? "spectator bar" : "scoreboard", top, Now());
+	g_sbKind = kind; g_sbTop = top; g_sbAt = Now();
 }
 
 static bool ScoreUp() { return g_sbAt > 0 && Now() - g_sbAt < 1000; }
@@ -774,7 +793,7 @@ static void DrawPanelInEye(IDirect3DDevice9* dev, IDirect3DTexture9* eyeTex, int
 		v[i].y = (1 - ty / h) * 0.5f * d.Height - 0.5f;
 		v[i].z = 0.0f;
 		v[i].rhw = 1.0f / -q[2];
-		v[i].u = (x + 1) * 0.5f; v[i].v = (i & 1) ? 1.0f : 0.0f;
+		v[i].u = (x + 1) * 0.5f; v[i].v = (i & 1) ? 1.0f : (score ? g_sbTop : 0.0f);
 	}
 	IDirect3DStateBlock9* sb = nullptr;
 	dev->CreateStateBlock(D3DSBT_ALL, &sb);
@@ -1161,13 +1180,13 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 			DrawPanelInEye(dev, eyeTex[1], 1);
 		}
 	}
-	// UT's scoreboard: placed in front of you when it comes up, and stays there in the room while it is up
+	// UT's scoreboard / spectator bar: placed in front of you when it comes up, and stays there in the room while it is up
 	if (g_menuOpen || g_screenMode) g_sbPlaced = false;
 	else if (!standalone && ScoreUp() && g_sbHave[0] && g_sbHave[1] && g_sbPS && (g_havePose || g_mock))
 	{
 		if (!g_sbPlaced) { g_placingScore = true; PlacePanel(false); g_placingScore = false; g_panelPlaced = false; g_sbPlaced = true; }
-		g_pHalfW = g_sbWidth * 0.5f;
-		g_pHalfH = g_pHalfW * g_sbH / std::max(1u, g_sbW);
+		g_pHalfW = (g_sbKind == 2 ? g_specWidth : g_sbWidth) * 0.5f;
+		g_pHalfH = g_pHalfW * (1 - g_sbTop) * g_sbH / std::max(1u, g_sbW);
 		DrawPanelInEye(dev, eyeTex[0], 0, true);
 		DrawPanelInEye(dev, eyeTex[1], 1, true);
 	}

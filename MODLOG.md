@@ -885,3 +885,16 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
 - HUD digits and icons 15% smaller (user: "slightly smaller"): HudSize=0.85 scales Big/Small/Icon (clock included). Messages keep their own size (VRMessageFontBoost). Mock: all items smaller, layout unchanged.
 - 2026-10-18, before publishing (private GitHub repo): the repository starts over with one commit (the user's choice);
   commit IDs quoted above refer to the earlier local history (kept locally as a bundle).
+- Spectator mode like the original (user: "the panel at the bottom with the player name and how to switch could
+  float in 3D"): the scoreboard capture is now an overlay capture of kind 1 (scoreboard) or 2 (UT's
+  HudCDeathMatch.DrawSpectatingHud: SquareBoxA bar in yellow, LMS logo, Now Viewing / name / score, tag line).
+  "S <kind> <top>" tells the proxy the window share to show (the bar: from its top edge, computed from the same
+  fonts as UT's layout); the proxy crops the panel to that strip and places the bar SpectatorBarDrop 0.3 m below
+  eye level at 1.0 m, 1.3 m wide. Our own "Spectating / Click: next player" text and the VR clock are off under it.
+- Spectator clicks did nothing (also the user's earlier "click does nothing" report): neither VRPlayerController's
+  global Fire nor PlayerController's Spectating.Fire ran from the Fire alias while spectating (a direct
+  ServerViewNextPlayer worked). Now PlayerTick reads the buttons while spectating (bFire/bAltFire; the trigger via
+  bBtnFire in controller mode, which VRWeaponInput doesn't map without a pawn): fire -> ServerViewNextPlayer, alt ->
+  ServerViewSelf, with a 0.3 s guard against the exec path seeing the same click. Debug: VRTapFire, VRSpecNext.
+  Mock (?SpectatorOnly=1, 3 bots): before - "Press Fire to View a different Player" bar; VRTapFire -> "spectating
+  xPawn2", bar shows Now Viewing / Divisor / score 1 under the chase view.

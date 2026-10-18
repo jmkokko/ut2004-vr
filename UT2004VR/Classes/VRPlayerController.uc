@@ -92,7 +92,9 @@ var Pawn     LastWarhead;           // riding a guided Redeemer: the head when i
 var vector   WarAnchor;
 var vector   SeatZeroPos, SeatZeroF;    // SteamVR's seated calibration ("Z" from the proxy)
 var bool     bSeatZero;
-var bool     bChairFromGaze;           // the next chair forward comes from the gaze (recenter), not the seated calibration
+var bool     bChairFromGaze;
+var bool     bSpecFireHeld, bSpecAltHeld;   // spectating: the buttons last tick
+var float    SpecSwitchTime, TapFireUntil;           // the next chair forward comes from the gaze (recenter), not the seated calibration
 var bool     bCineYawSeated, bCinePosWorn;
 var float    CineWaitStart;
 var int      TurretEntryYaw;
@@ -298,6 +300,14 @@ event PlayerTick(float DeltaTime)
 	local ONSWeapon VGun;
 	local byte VHitB;
 
+	if ( TapFireUntil > 0 && Level.TimeSeconds > TapFireUntil )
+	{
+		TapFireUntil = 0;
+		bFire = 0;
+	}
+	if ( IsInState('Spectating') )
+		SpectatorButtons();
+
 	// UT advances zoom in AdjustView, called from Pawn.UpdateEyeHeight on its own movement path; VR movement skips
 	// that, so run it here when it didn't run last frame
 	if ( Pawn != None && LastAdjustView < Level.TimeSeconds - DeltaTime * 1.5 )
@@ -406,7 +416,7 @@ event PlayerTick(float DeltaTime)
 			HeightOffset = GameEyeMeters() - SlowHeadZ;
 		}
 	}
-	if ( TestExec != "" && !bTestExecDone && Level.TimeSeconds > 3 && Pawn != None && Pawn.Weapon != None )
+	if ( TestExec != "" && !bTestExecDone && Level.TimeSeconds > 3 && ((Pawn != None && Pawn.Weapon != None) || IsVRSpectating()) )
 	{
 		bTestExecDone = true;
 		// a step that started a new level: carry on with the rest there (class defaults outlive the level)
@@ -421,7 +431,10 @@ event PlayerTick(float DeltaTime)
 			default.TestExecCarry = "";
 			RunTestExecStep();
 		}
-		Log("UT2004VR: TestExec '"$TestExec$"' on "$Pawn.Weapon.Class.Name$" -> grip "$GripOffsetFor(Pawn.Weapon), 'UT2004VR');
+		if ( Pawn != None )
+			Log("UT2004VR: TestExec '"$TestExec$"' on "$Pawn.Weapon.Class.Name$" -> grip "$GripOffsetFor(Pawn.Weapon), 'UT2004VR');
+		else
+			Log("UT2004VR: TestExec '"$TestExec$"' spectating", 'UT2004VR');
 	}
 	TickTestExec();
 	Super.PlayerTick(DeltaTime);
@@ -519,6 +532,17 @@ function TickTestExec()
 }
 
 // debug: run a command through the console's DelayedConsoleCommand, as UT's menus do (e.g. "start CTF-Face3?Game=...")
+// debug: the spectator's "view next player" (what Fire does in state Spectating), with what's in the way
+exec function VRSpecNext()
+{
+	local Controller C;
+	for ( C = Level.ControllerList; C != None; C = C.NextController )
+		Log("UT2004VR: spec candidate "$C$" canspectate "$Level.Game.CanSpectate(self, PlayerReplicationInfo.bOnlySpectator, C), 'UT2004VR');
+	Log("UT2004VR: spec next: frozen "$bFrozen$" timer "$TimerRate$" state "$GetStateName()$" viewtarget "$ViewTarget, 'UT2004VR');
+	ServerViewNextPlayer();
+	Log("UT2004VR: spec next -> viewtarget "$ViewTarget$" behind "$bBehindView, 'UT2004VR');
+}
+
 exec function VRStateLog()
 {
 	Log("UT2004VR: state "$GetStateName()$" pawn "$Pawn$" cinematic "$IsCinematic()$" interp "$bInterpolating$" matinee "$bViewingMatineeCinematic$" game "$Level.Game.Class$" waiting "$Level.Game.bWaitingToStartMatch$" viewtarget "$ViewTarget$" vractive "$VRActive()$" packets "$Link.Packets$" bound "$Link.bBound$" last "$LastPacketTime$" now "$Level.TimeSeconds$" pauser "$Level.Pauser$" gui "$Player.GUIController.bActive$" eyes "$EyeTex[0]$" mirror "$MirrorIA, 'UT2004VR');
@@ -1053,6 +1077,13 @@ simulated function MousePitchView(out vector F, out vector U)
 	// UT pitch > 0 looks up: rotate forward toward up, i.e. about -right
 	F = Normal(RotAbout(F, -Ax, Ang));
 	U = Normal(RotAbout(U, -Ax, Ang));
+}
+
+// spectating (a spectator, or a player watching before joining): UT shows its spectator bar then
+simulated function bool IsVRSpectating()
+{
+	return Pawn == None && !IsInState('Dead') && !IsCinematic()
+		&& (IsInState('Spectating') || (PlayerReplicationInfo != None && PlayerReplicationInfo.bOnlySpectator));
 }
 
 // a Matinee cinematic carries the controller itself (UT's intro, NvidiaLogo.ut2 in CinematicGame): no pawn
@@ -2514,11 +2545,66 @@ function SkipCinematic()
 	ConsoleCommand("DISCONNECT");
 }
 
+// spectating: fire (mouse button, or the trigger in controller mode) looks through the next player's eyes,
+// alt-fire goes back to your own camera. Read from the buttons: the Fire/AltFire execs never got here while
+// spectating (clicking did nothing), and VRWeaponInput doesn't map the trigger without a pawn.
+function SpectatorButtons()
+{
+	local bool bF, bA;
+	bF = bFire != 0 || (!bKeyboardMouse && bBtnFire);
+	bA = bAltFire != 0 || (!bKeyboardMouse && bBtnAlt);
+	if ( bF && !bSpecFireHeld )
+		SpectatorFire();
+	if ( bA && !bSpecAltHeld )
+		SpectatorAltFire();
+	bSpecFireHeld = bF;
+	bSpecAltHeld = bA;
+}
+
+function SpectatorFire()
+{
+	if ( Level.TimeSeconds - SpecSwitchTime < 0.3 && Level.TimeSeconds >= SpecSwitchTime )
+		return;   // the exec and the button both saw the same click
+	SpecSwitchTime = Level.TimeSeconds;
+	if ( bFrozen )
+	{
+		if ( TimerRate <= 0.0 || TimerRate > 1.0 )
+			bFrozen = false;
+		return;
+	}
+	ServerViewNextPlayer();
+	Log("UT2004VR: spectating "$ViewTarget, 'UT2004VR');
+}
+
+function SpectatorAltFire()
+{
+	if ( Level.TimeSeconds - SpecSwitchTime < 0.3 && Level.TimeSeconds >= SpecSwitchTime )
+		return;
+	SpecSwitchTime = Level.TimeSeconds;
+	bBehindView = false;
+	ServerViewSelf();
+	Log("UT2004VR: spectating own camera", 'UT2004VR');
+}
+
+// debug: press fire for a moment (TestExec can't hold a button)
+exec function VRTapFire()
+{
+	bFire = 1;
+	TapFireUntil = Level.TimeSeconds + 0.2;
+}
+
+// (these global versions win over PlayerController's state Spectating ones, so spectating is handled here too:
+// fire = the next player, alt-fire = back to your own camera, as UT's Spectating.Fire/AltFire do)
 exec function Fire(optional float F)
 {
 	if ( IsCinematic() )
 	{
 		SkipCinematic();
+		return;
+	}
+	if ( IsInState('Spectating') )
+	{
+		SpectatorFire();
 		return;
 	}
 	Super.Fire(F);
@@ -2529,6 +2615,11 @@ exec function AltFire(optional float F)
 	if ( IsCinematic() )
 	{
 		SkipCinematic();
+		return;
+	}
+	if ( IsInState('Spectating') )
+	{
+		SpectatorAltFire();
 		return;
 	}
 	Super.AltFire(F);
@@ -3410,7 +3501,7 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 	if ( IsCinematic() )
 		return;
 	// UT's own scoreboard is up (a panel from the proxy): as in 2D, no HUD under it, messages only if it wants them
-	if ( VRHUD(myHUD) != None && VRHUD(myHUD).ScoreFrame > 0 )
+	if ( VRHUD(myHUD) != None && VRHUD(myHUD).ScoreFrame > 0 && VRHUD(myHUD).OverlayKind == 1 )
 	{
 		if ( bVRMessages && myHUD.ScoreBoard != None && myHUD.ScoreBoard.bDisplayMessages )
 			VRHUD(myHUD).DrawVRMessages(self, Tex, Loc, Rot);
@@ -3420,7 +3511,8 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 		DrawVehicleCrosshair(Tex, Loc, Rot);
 	if ( HudBig != None && !bVRScoreboardOriginal && (bShowVRScores || (myHUD != None && myHUD.bShowScoreBoard)) )
 		DrawVRScores(Tex, Loc, Rot);
-	if ( bVRClock )
+	// (not while spectating with UT's own spectator bar: it has no clock either)
+	if ( bVRClock && !(bVRScoreboardOriginal && IsVRSpectating()) )
 		DrawVRClock(Tex, Loc, Rot, HudTex, Small, Icon * Small / Big);
 	if ( bVRMessages && VRHUD(myHUD) != None )
 		VRHUD(myHUD).DrawVRMessages(self, Tex, Loc, Rot);
@@ -3434,8 +3526,12 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 				PY = -0.33;
 			else
 				PY = 0.1;
-			// spectating: fire looks through the next player's eyes; joining goes through the Esc menu
-			if ( IsInState('Spectating') || (PlayerReplicationInfo != None && PlayerReplicationInfo.bOnlySpectator) )
+			// spectating: fire looks through the next player's eyes; joining goes through the Esc menu (with
+			// bVRScoreboardOriginal UT's own spectator bar is shown instead, as a panel)
+			if ( IsVRSpectating() && bVRScoreboardOriginal )
+			{
+			}
+			else if ( IsVRSpectating() )
 			{
 				HudText(Tex, Loc, Rot, 0, PY, "Spectating", HudBig, White, 1);
 				if ( bKeyboardMouse )
