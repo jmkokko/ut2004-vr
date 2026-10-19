@@ -482,6 +482,9 @@ static bool g_standaloneScreen = false;   // "M 2": a game without VR (the windo
 static void ScorePacket(const char* b);  // "S <kind> <top>"/"S 0" from the game (the scoreboard module below)
 static bool g_menuDialog = false;      // the menu page is a dialog drawn alone on black ("R ... 1")
 static double g_vrGameAt = 0;            // "M 0": a VR game renders its eyes
+static double g_vrSince = 0;             // ... since when (the first "M 0" after menus)
+static bool g_eyesStale = false;         // the eye targets we know are from before the menus (the intro, the last
+                                         // level): not shown until the new level's are found (or 1.5 s of "M 0")
 static IDirect3DTexture9* g_ownEye[2] = {};
 static HANDLE g_ownShare[2] = {};
 static ID3D11Texture2D* g_own11[2] = {};
@@ -526,7 +529,7 @@ static void PollGame()
 		if (b[0] == 'N') { int port = atoi(b + 1); if (port > 1024 && port < 65536) Announced(port); }
 		if (b[0] == 'M')
 		{
-			if (b[2] == '0') g_vrGameAt = Now();
+			if (b[2] == '0') { if (g_vrGameAt == 0) g_vrSince = Now(); g_vrGameAt = Now(); }
 			else
 			{
 				bool scr = b[2] == '2';
@@ -534,6 +537,7 @@ static void PollGame()
 				g_standaloneUntil = Now() + 1500;
 				g_standaloneScreen = scr;
 				g_vrGameAt = 0;   // the latest word wins (a leaving VR game's last "M 0" made the view flip)
+				g_eyesStale = true;
 			}
 		}
 		if (b[0] == 'S') ScorePacket(b);
@@ -1168,12 +1172,21 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 			for (int j = 0; j < g_nCand; j++) if (j != i && g_cand[j].eye == e) { g_cand[j].eye = -3; g_cand[j].tries = 1000; }
 			g_cand[i].eye = e;
 			Log("eye %d render target %p (%ux%u) t=%.0f", e, g_cand[i].tex, size, size, Now());
+			g_eyesStale = false;
 		}
 	}
 	int eyeIdx[2] = { -1, -1 };
 	for (int i = 0; i < g_nCand; i++) if (g_cand[i].eye == 0 || g_cand[i].eye == 1) eyeIdx[g_cand[i].eye] = i;
 	PollGame();
 	bool haveEyes = eyeIdx[0] >= 0 && eyeIdx[1] >= 0;
+	// eyes from before the menus (the intro's, the last level's) aren't this game's: wait for the new ones; if none
+	// turn up while the game runs (the engine reused the targets), take them after 1.5 s
+	if (g_eyesStale && haveEyes && g_vrGameAt > 0 && Now() - g_vrSince > 1500)
+	{
+		Log("no new eye targets after 1.5 s of a VR game: using the known ones t=%.0f", Now());
+		g_eyesStale = false;
+	}
+	if (g_eyesStale) haveEyes = false;
 	bool standalone = Now() < g_standaloneUntil;
 	// a VR game says its eyes render: show them now, not when the menus' standalone view times out (that gap showed
 	// the loading screen and the first frames on the flat big screen)
@@ -1185,7 +1198,8 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 	}
 	// nothing to show yet (a level loading, eyes not found yet), or eyes that no VR game is announcing any more
 	// (left over from the last level while the next one loads - stale or half-overwritten frames): the dark room
-	if (!standalone && (!haveEyes || (g_vrGameAt > 0 && Now() - g_vrGameAt > 2000))) standalone = true;
+	// (also before any "M 0": during a level load after the menus none comes, and the last known eyes showed)
+	if (!standalone && (!haveEyes || g_vrGameAt == 0 || Now() - g_vrGameAt > 2000)) standalone = true;
 
 	// the two eye targets this frame: the game's, or (standalone) our own dark room
 	IDirect3DTexture9* eyeTex[2];

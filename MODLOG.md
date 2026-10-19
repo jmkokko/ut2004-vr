@@ -969,3 +969,11 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   fighter: next/previous target; turrets: the next turret of the group).
   Mock: AS-BP2-Jumpship, VREnterVehicle SpaceFighter -> cockpit, crosshair, layer, no laser. The target brackets
   weren't seen (no enemy in range in the short run).
+- Flicker of an old 3D frame (the intro's) when a map starts from the menus (user report). Their proxy log: menu
+  closed at ...467313, "M 0" from the new level at ...470206, its eye targets found at ...470435. Two holes: the
+  stale-eye rule only fired with a known, old g_vrGameAt, but "M 1" sets it to 0, so during the load (no "M 0" yet)
+  the last known eyes - the intro's - were shown; and once "M 0" came the old targets counted as eyes until the new
+  ones were found. Now "M 1"/"M 2" mark the known eyes stale (g_eyesStale) until a new eye target is assigned, or
+  after 1.5 s of "M 0" (in case the engine reused the targets), and no "M 0" at all means the dark room. Mock
+  (intro -> disconnect -> menus -> VRStart DM): new eye targets at ...835161, "VR game eyes up" at ...835352,
+  the dark room before.
