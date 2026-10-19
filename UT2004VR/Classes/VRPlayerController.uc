@@ -3623,7 +3623,8 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 
 	if ( Pawn == None )
 	{
-		if ( HudBig != None )
+		// with the game type's own HUD its own screen says it (the scoreboard while dead: "press fire to respawn")
+		if ( HudBig != None && !UsingOriginalHud() )
 		{
 			// below the scoreboard, which UT shows while you're dead
 			if ( bShowVRScores || (myHUD != None && myHUD.bShowScoreBoard) )
@@ -3662,6 +3663,9 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 	// what it points at in the world is drawn here, in 3D
 	if ( UsingOriginalHud() )
 	{
+		// under the scoreboard (part of the layer now) nothing points into the world, as in 2D
+		if ( VRHUD(myHUD).WantScores(self) )
+			return;
 		if ( Markers == None )
 			Markers = new class'VRGameMarkers';
 		if ( HUD_Assault(VRHUD(myHUD).Shadow) != None )

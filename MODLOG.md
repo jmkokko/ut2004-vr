@@ -985,3 +985,10 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   startup intro (CinematicGame); in a Matinee intro UT's own Fire aborts the scene (Level.Game.SceneAbort) - before,
   a click there would have disconnected. Mock (AS-Convoy): "Assault intro playing", the cinematic camera with the
   head tracked (convoy fly-by, ship interior), then ASGameInfo::BeginRound and PlayerWalking, no fire pressed.
+- Scoreboard inside the original HUD layer (user: "F1 flashes the standard scoreboard in place of the HUD, then the
+  curved one replaces it; with the HUD layer we can use the standard scoreboard in the normal HUD"): the flash was
+  the switch from overlay kind 3 to kind 1 (same capture textures). Now kind 3 stays up whenever the original HUD
+  runs (alive or dead, not spectating) and DrawShadowHud draws ScoreBoard.DrawScoreboard instead of the HUD while it
+  is wanted (F1 / VRScores / UT's own while dead), as HUD.PostRender does; the 3D markers and our own respawn/join
+  hints are off then (the scoreboard has UT's own). Kind 1 (the curved panel) is only the bVROriginalHud=False
+  fallback now. Mock (DM, VRScores): the scoreboard in the head-locked layer, the proxy only ever saw "game HUD".

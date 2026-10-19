@@ -159,19 +159,26 @@ simulated function int VROverlay(VRPlayerController PC)
 {
 	if ( PC == None || !PC.VRActive() || !PC.bVRScoreboardOriginal || PC.bMenuOpen || PC.IsCinematic() )
 		return 0;
-	if ( ScoreBoard != None && (bShowScoreBoard || PC.bShowVRScores) )
-		return 1;
 	if ( PC.IsVRSpectating() )
 		return 2;
+	// the game type's HUD, with the scoreboard in its place while it is up (F1, or while dead), as in 2D
 	if ( HudLayerUp(PC) )
 		return 3;
+	// no original HUD (bVROriginalHud off): the scoreboard alone, on its own panel
+	if ( ScoreBoard != None && WantScores(PC) )
+		return 1;
 	return 0;
 }
 
-// 3: the game type's HUD, while you play (alive, a pawn of your own)
+simulated function bool WantScores(VRPlayerController PC)
+{
+	return bShowScoreBoard || PC.bShowVRScores;
+}
+
+// 3: the game type's HUD layer (alive or dead, not spectating)
 simulated function bool HudLayerUp(VRPlayerController PC)
 {
-	return Shadow != None && PC.bVROriginalHud && PC.bVRHud && PC.Pawn != None && !PC.IsInState('Dead') && !bHideHUD;
+	return Shadow != None && PC.bVROriginalHud && PC.bVRHud && !bHideHUD;
 }
 
 // the game type's own HUD beside this one: it ticks on its own (pulses, objectives, countdown announcements), and
@@ -234,6 +241,13 @@ simulated function DrawShadowHud(Canvas C)
 	{
 		bOldTyping = Con.bTyping;
 		Con.bTyping = false;
+	}
+	// the scoreboard replaces the HUD while it is up, as HUD.PostRender does in 2D
+	if ( ScoreBoard != None && WantScores(VRPlayerController(PlayerOwner)) )
+	{
+		C.Reset();
+		ScoreBoard.DrawScoreboard(C);
+		return;
 	}
 	Shadow.bShowScoreBoard = false;
 	// Assault's tracked vehicle and game object are drawn in 3D (VRGameMarkers): out of the captured picture
