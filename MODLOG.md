@@ -954,3 +954,18 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   first mock run). Debug: VRAimLog; VRSpawnVehicle takes a distance (ASTurret_Minigun won't spawn in DM anyway).
   Mock (AS-Convoy, VREnterVehicle Turret -> ASTurret_Minigun): turret within 4-10 rotator units of the gaze, steady;
   crosshair + green square on the aim point, objective markers on.
+- Assault, round 3 (user: "remove the red laser in Assault, the crosshair is enough; the green rectangle still
+  tracks something in the 2D HUD, matches nothing" - "visible in AS-BP2-Jumpship" - "it tracks space vehicles in
+  the original"): the rectangle is ASVehicle_SpaceFighter_Human.DrawTargetting (via the fighter's DrawHUD in the
+  captured layer): Draw_2DCollisionBox brackets (InfoBracket_FB, green 64,200,64) around CurrentTarget, or a line
+  toward it off screen. CurrentTarget is cleared for the capture; VRGameMarkers.DrawFighterTarget draws the brackets
+  around the target's collision box (x1.5, >= 16 px of a 640 screen) projected per eye, off view a green arrow at
+  the layer edge. It also does the fighter's TargetClosestToCrosshair (UT does it while drawing the crosshair, from
+  screen positions, which the capture no longer does): the relevant vehicle in sight nearest the fighter's aim.
+  IsTargetRelevant = enemies only (other team), within MaxTargetingRange, ahead of the fighter.
+  Laser: off for ASVehicle in the vehicle branch, and GunActive() is false in any vehicle - Assault's turrets and
+  fighters have a Pawn.Weapon, so UpdateGun drew the hand gun's laser from it (ONS vehicles have none).
+  The mouse wheel's seat cycling is ONS-only now: in Assault vehicles NextWeapon/PrevWeapon are UT's again (space
+  fighter: next/previous target; turrets: the next turret of the group).
+  Mock: AS-BP2-Jumpship, VREnterVehicle SpaceFighter -> cockpit, crosshair, layer, no laser. The target brackets
+  weren't seen (no enemy in range in the short run).

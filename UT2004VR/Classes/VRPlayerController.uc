@@ -363,7 +363,8 @@ event PlayerTick(float DeltaTime)
 	if ( Vehicle(Pawn) != None && VRActive() )
 	{
 		// the hand-held gun stays behind while you drive; the laser comes from the vehicle's gun
-		if ( bVehicleLaser && VehicleAimTrace(VStart, VDir, VHit, VGun, VHitB) )
+		// (not in Assault's vehicles and turrets: their own crosshair is on the aim point, VRGameMarkers)
+		if ( bVehicleLaser && ASVehicle(Pawn) == None && VehicleAimTrace(VStart, VDir, VHit, VGun, VHitB) )
 			UpdateLaser(true, VStart, VDir, true, VHit, VHitB != 0);
 		else
 			UpdateLaser(false, vect(0,0,0), vect(1,0,0));
@@ -570,6 +571,13 @@ exec function VRSpawnVehicle(string ClassName, optional float Dist)
 	if ( V == None && C != None )
 		V = Spawn(C,,, Pawn.Location + 600 * vector(R) + vect(0,0,400), R);
 	Log("UT2004VR: spawned "$V$" ("$C$")", 'UT2004VR');
+}
+
+// debug: the desktop window shows what is captured for the headset's overlay (the game type's HUD...)
+exec function VRShowCapture()
+{
+	if ( VRHUD(myHUD) != None )
+		VRHUD(myHUD).bDebugShowCapture = !VRHUD(myHUD).bDebugShowCapture;
 }
 
 // debug: the vehicle's aim against the gaze
@@ -1346,7 +1354,8 @@ simulated function GetHandWorld(int H, out vector Loc, out vector Dir)
 // ---------------------------------------------------------------------------
 simulated function bool GunActive()
 {
-	return bWeapons && VRActive() && (bHandOK[1] != 0 || bKeyboardMouse) && Pawn != None;
+	// (not in a vehicle: Assault's turrets and fighters carry a Weapon, but you don't hold it)
+	return bWeapons && VRActive() && (bHandOK[1] != 0 || bKeyboardMouse) && Pawn != None && Vehicle(Pawn) == None;
 }
 
 simulated function rotator GunRot()
@@ -3656,6 +3665,8 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 			Markers.DrawAssault(self, HUD_Assault(VRHUD(myHUD).Shadow), Tex, Loc, Rot);
 		if ( ASVehicle(Pawn) != None )
 			Markers.DrawASVehicleCrosshair(self, ASVehicle(Pawn), Tex, Loc, Rot);
+		if ( ASVehicle_SpaceFighter(Pawn) != None && HUD_Assault(VRHUD(myHUD).Shadow) != None )
+			Markers.DrawFighterTarget(self, ASVehicle_SpaceFighter(Pawn), HUD_Assault(VRHUD(myHUD).Shadow), Tex, Loc, Rot);
 		return;
 	}
 
@@ -3902,7 +3913,9 @@ function VehicleSeatCycle(int Dir)
 
 exec function NextWeapon()
 {
-	if ( Vehicle(Pawn) != None && VRActive() )
+	// Onslaught vehicles: the wheel changes seats; Assault's keep UT's own (space fighters: the next target,
+	// turrets: the next turret of the group)
+	if ( Vehicle(Pawn) != None && ASVehicle(Pawn) == None && VRActive() )
 		VehicleSeatCycle(1);
 	else
 		Super.NextWeapon();
@@ -3910,7 +3923,9 @@ exec function NextWeapon()
 
 exec function PrevWeapon()
 {
-	if ( Vehicle(Pawn) != None && VRActive() )
+	// Onslaught vehicles: the wheel changes seats; Assault's keep UT's own (space fighters: the next target,
+	// turrets: the next turret of the group)
+	if ( Vehicle(Pawn) != None && ASVehicle(Pawn) == None && VRActive() )
 		VehicleSeatCycle(-1);
 	else
 		Super.PrevWeapon();

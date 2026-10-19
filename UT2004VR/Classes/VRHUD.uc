@@ -14,6 +14,7 @@ class VRHUD extends HudCDeathMatch;
 var float MsgCullTime;              // Level.TimeSeconds the message queues were last aged
 var int ScoreFrame;                 // frames an original overlay has been up (every ScoreCapturePeriod: a capture pair)
 var int OverlayKind;                // that overlay: 1 UT's scoreboard, 2 UT's spectator bar (DrawSpectatingHud), 3 the game type's HUD
+var bool bDebugShowCapture;         // debug (VRShowCapture): the window shows the capture frame (over black) all the time
 var HudBase Shadow;                 // the game type's own HUD (HUD_Assault, HudCDeathMatch...), drawn only for the capture
 var float OverlayTop;               // the window share the overlay covers, from the top (0..1; the bar: its top edge)
 var int ScoreCapturePeriod;         // frames between scoreboard captures for the headset (two frames each)
@@ -39,6 +40,14 @@ simulated event PostRender(Canvas C)
 		// shows it on a panel in front of you (the spectator bar: only its strip, lower down). The proxy puts the
 		// previous window picture back for those two frames, so the desktop doesn't flash.
 		ScoreFrame++;
+		if ( bDebugShowCapture && ScoreFrame % ScoreCapturePeriod > 2 )
+		{
+			DrawScoreCapture(C, false);
+			C.SetPos(C.ClipX - 2, C.ClipY - 1);   // no marker: not a capture frame for the proxy
+			C.DrawColor.R = 0; C.DrawColor.G = 0; C.DrawColor.B = 0; C.DrawColor.A = 255;
+			C.DrawTile(Texture'Engine.WhiteSquareTexture', 2, 1, 0, 0, 2, 2);
+			return;
+		}
 		if ( ScoreFrame % ScoreCapturePeriod == 1 || ScoreFrame % ScoreCapturePeriod == 2 )
 		{
 			DrawScoreCapture(C, ScoreFrame % ScoreCapturePeriod == 2);
@@ -215,6 +224,7 @@ simulated function DrawShadowHud(Canvas C)
 	local GameObject GObj;
 	local Pawn P;
 	local bool bOldSpecialCH;
+	local Vehicle FTarget;
 
 	bOldBehind = PlayerOwner.bBehindView;
 	PlayerOwner.bBehindView = true;
@@ -248,9 +258,17 @@ simulated function DrawShadowHud(Canvas C)
 		bOldSpecialCH = P.bSpecialCrosshair;
 		P.bSpecialCrosshair = false;
 	}
+	// a space fighter's target box / line (at the target's screen position): in 3D instead
+	if ( ASVehicle_SpaceFighter(P) != None )
+	{
+		FTarget = ASVehicle_SpaceFighter(P).CurrentTarget;
+		ASVehicle_SpaceFighter(P).CurrentTarget = None;
+	}
 	Shadow.PostRender(C);
 	if ( P != None )
 		P.bSpecialCrosshair = bOldSpecialCH;
+	if ( ASVehicle_SpaceFighter(P) != None )
+		ASVehicle_SpaceFighter(P).CurrentTarget = FTarget;
 	if ( AH != None )
 	{
 		AH.TrackedVehicle = TV;

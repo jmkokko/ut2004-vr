@@ -124,6 +124,76 @@ function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedText
 	}
 }
 
+// a space fighter's target (ASVehicle_SpaceFighter_Human.DrawTargetting): UT's green brackets around the target's
+// collision box, projected into this eye; out of view, a green arrow at the layer's edge. It also picks the target
+// when asked (bTargetClosestToCrosshair; UT does it while drawing the crosshair, from screen positions): the
+// relevant vehicle in sight nearest to the fighter's aim
+function DrawFighterTarget(VRPlayerController PC, ASVehicle_SpaceFighter F, HUD_Assault H, ScriptedTexture Tex, vector Loc, rotator Rot)
+{
+	local Vehicle V, Best, T;
+	local vector Aim, Start, Corner;
+	local float Dot, BestDot, PX, PY, X0, Y0, X1, Y1, BX, BY, RS;
+	local int i;
+	local bool bAny;
+	local color C;
+
+	if ( F.bTargetClosestToCrosshair )
+	{
+		Start = F.GetFireStart();
+		Aim = Normal(F.GetCrosshairWorldLocation() - Start);
+		BestDot = -2;
+		foreach F.DynamicActors(class'Vehicle', V)
+			if ( F.IsTargetRelevant(V) && F.LineOfSightTo(V) )
+			{
+				Dot = Normal(V.Location - Start) dot Aim;
+				if ( Dot > BestDot )
+				{
+					BestDot = Dot;
+					Best = V;
+				}
+			}
+		if ( Best != None )
+			F.ServerSetTarget(Best);
+		F.bTargetClosestToCrosshair = false;
+	}
+
+	T = F.CurrentTarget;
+	if ( T == None || T.Health < 1 || T.bDeleteMe )
+		return;
+	C.R = 64; C.G = 200; C.B = 64; C.A = 255;
+	RS = LayerRes(PC, Tex);
+	if ( !InView(PC, Tex, T.Location, Loc, Rot, PX, PY) )
+	{
+		DrawBehind(PC, H, Tex, T, false, Loc, Rot, PX, PY, C, RS);
+		return;
+	}
+	// the box around the collision cylinder (x1.5, as UT), at least 16 px of a 640 wide screen
+	for ( i = 0; i < 8; i++ )
+	{
+		Corner = T.Location;
+		Corner.X += T.CollisionRadius * 1.5 * (2 * (i & 1) - 1);
+		Corner.Y += T.CollisionRadius * 1.5 * (2 * ((i >> 1) & 1) - 1);
+		Corner.Z += T.CollisionHeight * 1.5 * (2 * ((i >> 2) & 1) - 1);
+		if ( !PC.HudProject(Tex, Corner, Loc, Rot, PX, PY) )
+			continue;
+		if ( !bAny || PX < X0 ) X0 = PX;
+		if ( !bAny || PX > X1 ) X1 = PX;
+		if ( !bAny || PY < Y0 ) Y0 = PY;
+		if ( !bAny || PY > Y1 ) Y1 = PY;
+		bAny = true;
+	}
+	if ( !bAny )
+		return;
+	BX = 16 * PC.LayerPixels(Tex) / 640;
+	BY = BX;
+	if ( X1 - X0 < BX ) { PX = (X0 + X1) * 0.5; X0 = PX - BX * 0.5; X1 = PX + BX * 0.5; }
+	if ( Y1 - Y0 < BY ) { PY = (Y0 + Y1) * 0.5; Y0 = PY - BY * 0.5; Y1 = PY + BY * 0.5; }
+	Tex.DrawTile(X0, Y0, BX, BY, 0, 0, 32, 32, Material'AS_FX_TX.Icons.InfoBracket_FB', C);
+	Tex.DrawTile(X1 - BX, Y0, BX, BY, 0, 0, -32, 32, Material'AS_FX_TX.Icons.InfoBracket_FB', C);
+	Tex.DrawTile(X0, Y1 - BY, BX, BY, 0, 0, 32, -32, Material'AS_FX_TX.Icons.InfoBracket_FB', C);
+	Tex.DrawTile(X1 - BX, Y1 - BY, BX, BY, 0, 0, -32, -32, Material'AS_FX_TX.Icons.InfoBracket_FB', C);
+}
+
 // HUD_Assault.IsObjectiveVisible, from the head
 function bool ObjectiveVisible(VRPlayerController PC, HUD_Assault H, GameObjective GO)
 {
