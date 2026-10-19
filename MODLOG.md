@@ -977,3 +977,11 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   after 1.5 s of "M 0" (in case the engine reused the targets), and no "M 0" at all means the dark room. Mock
   (intro -> disconnect -> menus -> VRStart DM): new eye targets at ...835161, "VR game eyes up" at ...835352,
   the dark room before.
+- Assault intros (user: "the intro scene explaining the objective is missing in VR"): ASGameInfo.Login triggers
+  'IntroScene' (the Matinee briefing) only when !bQuickStart, and VRMutator set bQuickStart for every DeathMatch.
+  Now Assault (standalone) gets bQuickStart off until the local player is in (VRMutator.Tick), then on again, so
+  PendingMatch's Begin starts the match by itself when the intro ends (SPIntroCinematic.EndState); without an intro
+  the mutator calls StartMatch at once. Fire / AltFire / the free-view trigger skip to the main menu only in the
+  startup intro (CinematicGame); in a Matinee intro UT's own Fire aborts the scene (Level.Game.SceneAbort) - before,
+  a click there would have disconnected. Mock (AS-Convoy): "Assault intro playing", the cinematic camera with the
+  head tracked (convoy fly-by, ship interior), then ASGameInfo::BeginRound and PlayerWalking, no fire pressed.

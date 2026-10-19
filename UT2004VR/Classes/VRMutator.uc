@@ -6,6 +6,7 @@
 class VRMutator extends Mutator;
 
 var int BotNameIndex;
+var bool bAssaultIntro;          // Assault: quickstart is off until the local player is in (its intro plays)
 var array<Controller> Named;     // bots that already got their name
 
 function PostBeginPlay()
@@ -16,7 +17,34 @@ function PostBeginPlay()
 	Level.Game.PlayerControllerClassName = "UT2004VR.VRPlayerController";
 	if ( DeathMatch(Level.Game) != None )
 		DeathMatch(Level.Game).bQuickStart = true;   // nobody can "press fire to start" with a headset on
+	// Assault plays its Matinee intro (the objective briefing) only for a player who logs in without quickstart:
+	// off until you are in, then on again, so the match starts by itself once the intro ends (or at once without one)
+	if ( ASGameInfo(Level.Game) != None && Level.NetMode == NM_Standalone )
+	{
+		ASGameInfo(Level.Game).bQuickStart = false;
+		bAssaultIntro = true;
+	}
 	Log("UT2004VR: VR mutator in "$Level.Game.Class, 'UT2004VR');
+}
+
+function Tick(float DeltaTime)
+{
+	local PlayerController PC;
+
+	if ( !bAssaultIntro )
+		return;
+	PC = Level.GetLocalPlayerController();
+	if ( PC == None || PC.PlayerReplicationInfo == None )
+		return;
+	bAssaultIntro = false;
+	ASGameInfo(Level.Game).bQuickStart = true;
+	if ( Level.Game.IsInState('SPIntroCinematic') )
+		Log("UT2004VR: Assault intro playing", 'UT2004VR');
+	else if ( Level.Game.IsInState('PendingMatch') )
+	{
+		Log("UT2004VR: no Assault intro: starting the match", 'UT2004VR');
+		Level.Game.StartMatch();
+	}
 }
 
 function ModifyPlayer(Pawn Other)

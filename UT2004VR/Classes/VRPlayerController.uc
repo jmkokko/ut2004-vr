@@ -385,10 +385,11 @@ event PlayerTick(float DeltaTime)
 	if ( IsFreeView() && VRActive() )
 	{
 		UpdateHeadWorld();
-		// the trigger: skips a cinematic to the menu, like a click does; otherwise presses fire (joins the match)
+		// the trigger: skips the startup intro to the menu, like a click does; otherwise presses fire (joins the match;
+		// in a Matinee intro such as Assault's briefing, UT's Fire skips the scene)
 		if ( bBtnFire && !bOldFire )
 		{
-			if ( IsCinematic() )
+			if ( IsCinematic() && CinematicGame(Level.Game) != None )
 				SkipCinematic();
 			else
 			{
@@ -2663,7 +2664,9 @@ exec function VRTapFire()
 // fire = the next player, alt-fire = back to your own camera, as UT's Spectating.Fire/AltFire do)
 exec function Fire(optional float F)
 {
-	if ( IsCinematic() )
+	// the startup intro (CinematicGame): to the main menu; a Matinee intro in a game (Assault's briefing): UT's own
+	// Fire aborts the scene
+	if ( IsCinematic() && CinematicGame(Level.Game) != None )
 	{
 		SkipCinematic();
 		return;
@@ -2678,7 +2681,7 @@ exec function Fire(optional float F)
 
 exec function AltFire(optional float F)
 {
-	if ( IsCinematic() )
+	if ( IsCinematic() && CinematicGame(Level.Game) != None )
 	{
 		SkipCinematic();
 		return;
