@@ -237,6 +237,31 @@ simulated function DisplayHit(vector HitDir, int Damage, class<DamageType> damag
 		Shadow.DisplayHit(HitDir, Damage, damageType);
 }
 
+// the HUD settings (Settings > HUD and the crosshair page) are made on this HUD and saved: the game type's HUD beside
+// it read them only when it was created, so they are passed on before each capture
+simulated function SyncShadow()
+{
+	Shadow.bShowWeaponInfo = bShowWeaponInfo;
+	Shadow.bShowPersonalInfo = bShowPersonalInfo;
+	Shadow.bShowPoints = bShowPoints;
+	Shadow.bShowWeaponBar = bShowWeaponBar;
+	Shadow.bSmallWeaponBar = bSmallWeaponBar;
+	Shadow.bShowPortrait = bShowPortrait;
+	Shadow.bShowPortraitVC = bShowPortraitVC;
+	Shadow.bNoEnemyNames = bNoEnemyNames;
+	Shadow.HudScale = HudScale;
+	Shadow.HudOpacity = HudOpacity;
+	Shadow.HudCanvasScale = HudCanvasScale;
+	Shadow.CrosshairStyle = CrosshairStyle;
+	Shadow.CrosshairScale = CrosshairScale;
+	Shadow.CrosshairColor = CrosshairColor;
+	if ( Shadow.CustomHUDColor != class'HudBase'.default.CustomHUDColor )
+	{
+		Shadow.CustomHUDColor = class'HudBase'.default.CustomHUDColor;
+		Shadow.SetCustomHUDColor();
+	}
+}
+
 // the game type's HUD alone: no first-person gun (UT draws it from the HUD, but not in behind view), no typing prompt
 simulated function DrawShadowHud(Canvas C)
 {
@@ -253,6 +278,7 @@ simulated function DrawShadowHud(Canvas C)
 	local ONSWeaponPawn WP;
 	local float CHX, CHY;
 
+	SyncShadow();
 	bOldBehind = PlayerOwner.bBehindView;
 	PlayerOwner.bBehindView = true;
 	if ( PlayerOwner.Player != None )

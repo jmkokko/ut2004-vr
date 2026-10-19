@@ -581,6 +581,17 @@ exec function VRShowCapture()
 		VRHUD(myHUD).bDebugShowCapture = !VRHUD(myHUD).bDebugShowCapture;
 }
 
+// debug: the HUD settings on this HUD and on the game type's one beside it
+exec function VRHudLog()
+{
+	local VRHUD H;
+	H = VRHUD(myHUD);
+	if ( H == None )
+		return;
+	Log("UT2004VR: hud scale "$H.HudScale$" weaponbar "$H.bShowWeaponBar$" opacity "$H.HudOpacity$" crosshair "$H.CrosshairStyle
+		$" | shadow "$H.Shadow$" scale "$H.Shadow.HudScale$" weaponbar "$H.Shadow.bShowWeaponBar$" opacity "$H.Shadow.HudOpacity, 'UT2004VR');
+}
+
 // debug: the vehicle's aim against the gaze
 exec function VRAimLog()
 {

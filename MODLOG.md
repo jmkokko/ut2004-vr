@@ -1002,3 +1002,11 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   muzzle trace's hit point (VehicleAimTrace); the vehicle's own centred aim crosshair is zero-sized for the capture
   (CrosshairX/Y = -0.5: its tile is 2X+1; bCorrectAim is const). Mock (ONS-Torlan, spawned Goliath): green UT
   crosshair on the wall the barrel points at; VRTestMessages lines in the layer over the scene.
+- HUD settings (user: "the VR HUD doesn't follow the Settings page HUD options"): UT2K4Tab_HudSettings writes to
+  PlayerOwner().myHUD (VRHUD) and saves, and the custom HUD colour goes to class'HudBase'.default; the game type's
+  HUD beside it (Shadow) only read them when it was spawned. VRHUD.SyncShadow now copies bShowWeaponInfo /
+  PersonalInfo / Points / WeaponBar / SmallWeaponBar / Portrait(VC), bNoEnemyNames, HudScale, HudOpacity,
+  HudCanvasScale, CrosshairStyle / Scale / Color, and the custom HUD colour (SetCustomHUDColor) before each capture;
+  the message options apply as they are (VRHUD draws the messages itself), and the 3D ONS crosshair follows
+  myHUD.bCrosshairShow. Debug VRHudLog. Mock: `set UT2004VR.VRHUD HudScale 0.6` + `bShowWeaponBar False` -> both
+  HUDs 0.60 / False. Note for tests: the game saves HUD settings into User.ini at exit - back it up (done here).

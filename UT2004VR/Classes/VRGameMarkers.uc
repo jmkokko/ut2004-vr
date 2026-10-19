@@ -212,8 +212,8 @@ function DrawONSCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex,
 	if ( !PC.VehicleAimTrace(Start, Dir, HL, W, bHit) || !InView(PC, Tex, HL, Loc, Rot, PX, PY) )
 		return;
 	RS = LayerRes(PC, Tex);
-	// UT's crosshair (HUD.CrosshairStyle from the player's settings)
-	if ( H != None && H.Crosshairs.Length > 0 )
+	// UT's crosshair (HUD.CrosshairStyle from the player's settings; Settings' "show crosshair" is the active HUD's)
+	if ( H != None && H.Crosshairs.Length > 0 && PC.myHUD.bCrosshairShow )
 	{
 		i = Clamp(H.CrosshairStyle, 0, H.Crosshairs.Length - 1);
 		M = H.Crosshairs[i].WidgetTexture;
