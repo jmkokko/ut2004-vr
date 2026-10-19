@@ -1,0 +1,336 @@
+//=============================================================================
+// VRGameMarkers: the game types' world-pointing HUD markers in VR. The game type's own HUD (VRHUD.Shadow) goes into
+// the headset as a captured layer, but what it draws at the screen position of something in the world would sit in
+// the wrong place there, so those markers are drawn here instead: projected from the world point into each eye
+// (they sit on the objective, at its depth), with the HUD's own textures, colours, pulse and rules.
+// Assault (HUD_Assault): objectives (icon, defender shield, progress bar; blocked: small icon + distance; out of
+// view: an arrow at the edge of the HUD layer), the tracked vehicle and the tracked game object (JunkYard's core).
+//=============================================================================
+class VRGameMarkers extends Object;
+
+var TexRotator Arrows[8];           // the out-of-view arrows (one per objective drawn this eye)
+var int ArrowCount;
+
+// the HUD's ResScale for the HUD layer (a virtual 16:9 screen as wide as the layer, in this eye's pixels)
+static function float LayerRes(VRPlayerController PC, ScriptedTexture Tex)
+{
+	return PC.LayerPixels(Tex) / 853.0;
+}
+
+// a world point -> pixel in this eye; false when behind the eye or outside the picture
+static function bool InView(VRPlayerController PC, ScriptedTexture Tex, vector P, vector Loc, rotator Rot, out float PX, out float PY)
+{
+	if ( !PC.HudProject(Tex, P, Loc, Rot, PX, PY) )
+		return false;
+	return PX >= 0 && PX <= Tex.USize && PY >= 0 && PY <= Tex.VSize;
+}
+
+function DrawAssault(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, vector Loc, rotator Rot)
+{
+	local int i;
+	local GameObjective GO;
+	local float PX, PY, RS, Prog;
+	local color C;
+	local byte bPulse;
+	local Vehicle V;
+
+	if ( H == None || PC.Pawn == None )
+		return;
+	RS = LayerRes(PC, Tex);
+	ArrowCount = 0;
+
+	// objectives (HUD_Assault.DrawObjectives)
+	if ( H.default.bOnHUDObjectiveNotification )
+		for ( i = 0; i < H.OBJ.Length; i++ )
+		{
+			GO = H.OBJ[i];
+			if ( GO == None || !GO.IsActive() || !GO.bUsePriorityOnHUD || !H.CheckObjectivePriority(GO) )
+				continue;
+			C = H.GetObjectiveColor(GO, bPulse);
+			Prog = GO.GetObjectiveProgress();
+			if ( InView(PC, Tex, GO.Location, Loc, Rot, PX, PY) )
+			{
+				if ( ObjectiveVisible(PC, H, GO) )
+					DrawVisibleObjective(PC, H, Tex, GO, PX, PY, C, bPulse, Prog, RS);
+				else
+				{
+					C.A = 128;
+					DrawObstructed(PC, H, Tex, GO, GO.bOptionalObjective, PX, PY, C, RS);
+					if ( Prog > 0 )
+						DrawStatusOverlay(H, Tex, PX, PY, Prog, H.ObjectiveScale * 0.67, RS);
+					if ( GO.IsCritical() )
+						DrawCriticalOverlay(H, Tex, PX, PY, H.ObjectiveScale, RS);
+				}
+			}
+			else if ( H.bDrawAllObjectives )
+			{
+				DrawBehind(PC, H, Tex, GO, GO.bOptionalObjective, Loc, Rot, PX, PY, C, RS);
+				if ( Prog > 0 )
+					DrawStatusOverlay(H, Tex, PX, PY, Prog, H.ObjectiveScale * 0.67, RS);
+				if ( GO.IsCritical() )
+					DrawCriticalOverlay(H, Tex, PX, PY, H.ObjectiveScale * 0.60, RS);
+			}
+		}
+
+	// the tracked vehicle and game object (HUD_Assault.UpdateActorTracking; the captured HUD skips them)
+	V = H.TrackedVehicle;
+	if ( V != None && V != PC.Pawn && V.Health > 0 && !V.bDeleteMe )
+	{
+		C = class'HUD_Assault'.static.GetTeamColor(V.Team);
+		C.A = 128;
+		if ( DrawTracking(PC, H, Tex, V, Loc, Rot, PX, PY, C, RS) )
+			DrawVehicleIcon(H, Tex, V, PX, PY, RS);
+	}
+	if ( H.ASGRI != None && H.ASGRI.GameObject != None && H.ASGRI.GameObject.HolderPRI != PC.Pawn.PlayerReplicationInfo )
+	{
+		C = H.GoldColor;
+		C.A = 128;
+		if ( DrawTracking(PC, H, Tex, H.ASGRI.GameObject, Loc, Rot, PX, PY, C, RS) )
+		{
+			C = H.WhiteColor;
+			C.A = 127 + 128 * H.fPulse;
+			Tex.DrawTile(PX - 8 * RS * H.ObjectiveScale * H.HUDScale, PY - 16 * RS * H.ObjectiveScale * H.HUDScale,
+				16 * RS * H.ObjectiveScale * H.HUDScale, 16 * RS * H.ObjectiveScale * H.HUDScale, 79, 223, 37, 41,
+				Material'HudContent.Generic.HUD', C);
+		}
+	}
+}
+
+// HUD_Assault.IsObjectiveVisible, from the head
+function bool ObjectiveVisible(VRPlayerController PC, HUD_Assault H, GameObjective GO)
+{
+	local vector Dir, P;
+
+	if ( !GO.bOverrideZoneCheck && PC.Pawn.Region.Zone != GO.Region.Zone )
+		return false;
+	if ( GO.DrawDistThresHold > 0 && VSize(GO.Location - PC.VRHeadWorld) > GO.DrawDistThresHold )
+		return false;
+	if ( GO.bOverrideVisibilityCheck )
+		return true;
+	Dir = GO.Location - PC.VRHeadWorld;
+	Dir.Z = 0;
+	P = GO.Location - 2.0 * GO.CollisionRadius * Normal(Dir);
+	return PC.FastTrace(P, PC.VRHeadWorld);
+}
+
+// HUD_Assault.DrawVisibleObjective (without its appear/fade-out timing)
+function DrawVisibleObjective(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, GameObjective GO, float PX, float PY,
+	color ObjColor, byte bPulse, float Prog, float RS)
+{
+	local float T;
+	local color C;
+
+	C = ObjColor;
+	if ( bPulse == 0 )
+		C.A = 63 + 128 * H.fPulse;
+	else
+		C.A = 127;
+	T = 64 * RS * H.ObjectiveScale * H.HUDScale;
+	if ( GO.IsA('UseObjective') )
+	{
+		if ( GO.UseDescription != "" )
+			Text(PC, H, Tex, PX, PY, H.IP_Bracket_Open @ GO.UseDescription @ H.IP_Bracket_Close, C);
+	}
+	else if ( GO.ObjectiveTypeIcon != None )
+		Tex.DrawTile(PX - T * 0.5, PY - T * 0.5, T, T, 0, 0, 64, 64, GO.ObjectiveTypeIcon, C);
+
+	// the defenders' shield
+	if ( H.ASGRI != None && H.ASGRI.IsDefender(PC.Pawn.GetTeamNum()) )
+	{
+		if ( GO.IsCritical() )
+			C = Blend(H.GreenColor, H.GoldColor, H.fPulse);
+		else
+			C = H.GreenColor;
+		if ( bPulse == 0 )
+			C.A = 63 + 128 * H.fPulse;
+		else
+			C.A = 127;
+		T = 1.25 * 64 * RS * H.ObjectiveScale * H.HUDScale;
+		Tex.DrawTile(PX - T * 0.5, PY - T * 0.5, T, T, 191, 191, 64, 64, Texture'AS_FX_TX.HUD.OBJ_Status', C);
+	}
+	if ( Prog > 0 )
+		DrawHealthBar(H, Tex, PX, PY - 48 * RS, Prog, ObjColor, RS);
+}
+
+// A * t + B * (1 - t) (the HUD classes' colour operators aren't visible outside them)
+static function color Blend(color A, color B, float T)
+{
+	local color C;
+	C.R = byte(A.R * T + B.R * (1 - T));
+	C.G = byte(A.G * T + B.G * (1 - T));
+	C.B = byte(A.B * T + B.B * (1 - T));
+	C.A = byte(A.A * T + B.A * (1 - T));
+	return C;
+}
+
+// HUD_Assault.DrawHealthBar
+function DrawHealthBar(HUD_Assault H, ScriptedTexture Tex, float X, float Y, float Pct, color C, float RS)
+{
+	local float W, Ht;
+	local color B;
+
+	W = H.default.HealthBarWidth * RS * H.HUDScale;
+	Ht = H.default.HealthBarHeight * RS * H.HUDScale;
+	Tex.DrawTile(X - W * 0.5, Y - Ht * 0.5, W, Ht, 0, 0, H.HealthBarBackMat.MaterialUSize(), H.HealthBarBackMat.MaterialVSize(),
+		H.HealthBarBackMat, C);
+	B = class'HUD_Assault'.static.GetGYRColorRamp(Pct);
+	B.A = 200;
+	Tex.DrawTile(X - W * 0.49, Y - Ht * 0.3, W * Pct * 0.98, Ht * 0.6, 0, 0, H.HealthBarMat.MaterialUSize(), H.HealthBarMat.MaterialVSize(),
+		H.HealthBarMat, B);
+}
+
+// HUD_Assault.DrawObjectiveStatusOverlay: the ring that fills green -> yellow -> red
+function DrawStatusOverlay(HUD_Assault H, ScriptedTexture Tex, float X, float Y, float Prog, float Scale, float RS)
+{
+	local float S, U, V;
+	local color C;
+
+	if ( Prog <= 0 )
+		return;
+	S = 64 * 0.5 * H.HUDScale * Scale * RS;
+	C = class'HUD_Assault'.static.GetGYRColorRamp(Prog);
+	C.A = 128;
+	if ( Prog > 0.6 )
+	{
+		U = 64 * (10 - Ceil(Prog * 10));
+		V = 0;
+	}
+	else if ( Prog > 0.2 )
+	{
+		U = 64 * (6 - Ceil(Prog * 10));
+		V = 64;
+	}
+	else
+	{
+		U = 64 * (2 - Ceil(Prog * 10));
+		V = 128;
+	}
+	Tex.DrawTile(X - S * 0.5, Y - S * 0.5, S, S, U, V, 64, 64, Texture'AS_FX_TX.HUD.OBJ_Status', C);
+}
+
+function DrawCriticalOverlay(HUD_Assault H, ScriptedTexture Tex, float X, float Y, float Scale, float RS)
+{
+	local float SX, SY;
+	SX = 24 * 0.33 * H.HUDScale * Scale * RS;
+	SY = 62 * 0.33 * H.HUDScale * Scale * RS;
+	Tex.DrawTile(X - SX * 0.5, Y - SY * 0.5, SX, SY, 344, 210, 20, 62, FinalBlend'HudContent.Generic.HUDPulse', H.WhiteColor);
+}
+
+// HUD_Assault.DrawActorTracking_Obstructed: a small objective icon with the distance under it; PY moves to the icon
+function DrawObstructed(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, Actor A, bool bOptional, out float PX, out float PY,
+	color C, float RS)
+{
+	local float T;
+
+	T = 64 * 0.45 * RS * H.ObjectiveScale * H.HUDScale;
+	if ( bOptional )
+		Tex.DrawTile(PX - T * 0.5, PY - T, T, T, 191, 127, 64, 64, Texture'AS_FX_TX.HUD.OBJ_Status', C);
+	else
+		Tex.DrawTile(PX - T * 0.5, PY - T, T, T, 127, 127, 64, 64, Texture'AS_FX_TX.HUD.OBJ_Status', C);
+	Text(PC, H, Tex, PX, PY + T * 0.1, H.IP_Bracket_Open $ int(VSize(A.Location - PC.VRHeadWorld) * 0.01875) $ H.MetersString
+		$ H.IP_Bracket_Close, C);
+	PY -= T * 0.5;
+}
+
+// HUD_Assault.DrawActorTracking_Behind: an arrow at the edge of the HUD layer, toward the target
+function DrawBehind(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, Actor A, bool bOptional, vector Loc, rotator Rot,
+	out float PX, out float PY, color C, float RS)
+{
+	local vector L;
+	local float DY, DZ, D, Edge, T;
+	local TexRotator Arrow;
+
+	// the direction in the head's view plane, out to the layer's edge (a box, like the original's screen edge)
+	L = (A.Location - PC.VRHeadWorld) << PC.VRHeadRot;
+	DY = L.Y;
+	DZ = L.Z;
+	D = Sqrt(DY * DY + DZ * DZ);
+	if ( D < 1 )
+		return;
+	DY /= D;
+	DZ /= D;
+	if ( Abs(DY) * PC.LayerHalfUp() > Abs(DZ) * PC.LayerHalfRight() )
+		Edge = PC.LayerHalfRight() / Abs(DY);
+	else
+		Edge = PC.LayerHalfUp() / Abs(DZ);
+	Edge *= 0.92;   // the arrow inside the edge
+	if ( !PC.LayerPoint(Tex, Loc, Rot, DY * Edge, DZ * Edge, PX, PY) )
+		return;
+
+	if ( ArrowCount >= ArrayCount(Arrows) )
+		return;
+	if ( Arrows[ArrowCount] == None )
+	{
+		Arrows[ArrowCount] = new(None) class'TexRotator';
+		Arrows[ArrowCount].UOffset = 64;
+		Arrows[ArrowCount].VOffset = 64;
+	}
+	Arrow = Arrows[ArrowCount++];
+	Arrow.Rotation.Yaw = Atan(DZ, DY) * 32768 / 3.14159265;
+	if ( bOptional )
+		Arrow.Material = Texture'AS_FX_TX.HUD.Objective_Optional_Indicator';
+	else
+		Arrow.Material = Texture'AS_FX_TX.HUD.Objective_Primary_Indicator';
+	T = 128 * 0.45 * RS * H.ObjectiveScale * H.HUDScale;
+	Tex.DrawTile(PX - T * 0.5, PY - T * 0.5, T, T, 0, 0, 128, 128, Arrow, C);
+}
+
+// HUD_Assault.DrawActorTracking: true when an icon should go at PX, PY (out of view or blocked)
+function bool DrawTracking(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, Actor A, vector Loc, rotator Rot,
+	out float PX, out float PY, color C, float RS)
+{
+	local float Prog;
+
+	if ( Pawn(A) != None && Pawn(A).HealthMax > 0 )
+		Prog = float(Pawn(A).Health) / Pawn(A).HealthMax;
+	if ( !InView(PC, Tex, A.Location, Loc, Rot, PX, PY) )
+	{
+		DrawBehind(PC, H, Tex, A, false, Loc, Rot, PX, PY, C, RS);
+		if ( Prog > 0 )
+			DrawStatusOverlay(H, Tex, PX, PY, Prog, H.ObjectiveScale * 0.67, RS);
+		return true;
+	}
+	if ( VSize(A.Location - PC.VRHeadWorld) > 2048 || !PC.FastTrace(A.Location, PC.VRHeadWorld) )
+	{
+		DrawObstructed(PC, H, Tex, A, false, PX, PY, C, RS);
+		if ( Prog > 0 )
+			DrawStatusOverlay(H, Tex, PX, PY, Prog, H.ObjectiveScale * 0.67, RS);
+		return true;
+	}
+	if ( Prog > 0 )
+		DrawHealthBar(H, Tex, PX, PY - 48 * RS, Prog, C, RS);
+	return false;
+}
+
+function DrawVehicleIcon(HUD_Assault H, ScriptedTexture Tex, Vehicle V, float X, float Y, float RS)
+{
+	local float S, SX, SY, Ratio;
+	local color C;
+
+	if ( V.VehicleIcon.Material == None || V.VehicleIcon.SizeY == 0 )
+		return;
+	S = H.ObjectiveScale * H.HUDScale;
+	Ratio = V.VehicleIcon.SizeX / V.VehicleIcon.SizeY;
+	SX = 32 * S * RS;
+	SY = (32 / Ratio) * S * RS;
+	if ( V.VehicleIcon.bIsGreyScale )
+		C = class'HUD_Assault'.static.GetTeamColor(1 - V.Team);
+	else
+		C = H.WhiteColor;
+	C.A = 127 + 128 * H.fPulse;
+	Tex.DrawTile(X - SX * 0.5, Y - SY * 0.5, SX, SY, V.VehicleIcon.X, V.VehicleIcon.Y, V.VehicleIcon.SizeX, V.VehicleIcon.SizeY,
+		V.VehicleIcon.Material, C);
+}
+
+// centred text in the HUD's console font for the layer's size
+function Text(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, float X, float Y, string S, color C)
+{
+	local Font F;
+	local int W, Ht;
+
+	F = H.LoadFont(Clamp(H.ConsoleFontSize + 6 - PC.MsgFontSteps(PC.LayerPixels(Tex)), 0, 8));
+	if ( F == None )
+		return;
+	Tex.TextSize(S, F, W, Ht);
+	PC.MsgText(Tex, X - W / 2, Y, S, F, C);
+}

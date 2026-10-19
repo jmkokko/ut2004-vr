@@ -13,7 +13,8 @@ class VRHUD extends HudCDeathMatch;
 
 var float MsgCullTime;              // Level.TimeSeconds the message queues were last aged
 var int ScoreFrame;                 // frames an original overlay has been up (every ScoreCapturePeriod: a capture pair)
-var int OverlayKind;                // that overlay: 1 UT's scoreboard, 2 UT's spectator bar (DrawSpectatingHud)
+var int OverlayKind;                // that overlay: 1 UT's scoreboard, 2 UT's spectator bar (DrawSpectatingHud), 3 the game type's HUD
+var HudBase Shadow;                 // the game type's own HUD (HUD_Assault, HudCDeathMatch...), drawn only for the capture
 var float OverlayTop;               // the window share the overlay covers, from the top (0..1; the bar: its top edge)
 var int ScoreCapturePeriod;         // frames between scoreboard captures for the headset (two frames each)
 var float ScoreSaidAt;              // "S 1" to the proxy (it watches for the capture frames while that keeps coming)
@@ -45,7 +46,11 @@ simulated event PostRender(Canvas C)
 			if ( PC.Link != None && (Level.TimeSeconds - ScoreSaidAt > 0.25 || Level.TimeSeconds < ScoreSaidAt) )
 			{
 				ScoreSaidAt = Level.TimeSeconds;
-				PC.Link.ToProxy("S " $ K $ " " $ OverlayTop);
+				// "S 3 0 <distance> <half width> <centre up>": the HUD layer where the VR HUD's corners are
+				if ( K == 3 )
+					PC.Link.ToProxy("S 3 0 " $ PC.HudDistance $ " " $ PC.LayerHalfRight() $ " " $ PC.LayerCentreUp());
+				else
+					PC.Link.ToProxy("S " $ K $ " " $ OverlayTop);
 			}
 			return;
 		}
@@ -149,7 +154,101 @@ simulated function int VROverlay(VRPlayerController PC)
 		return 1;
 	if ( PC.IsVRSpectating() )
 		return 2;
+	if ( HudLayerUp(PC) )
+		return 3;
 	return 0;
+}
+
+// 3: the game type's HUD, while you play (alive, a pawn of your own)
+simulated function bool HudLayerUp(VRPlayerController PC)
+{
+	return Shadow != None && PC.bVROriginalHud && PC.bVRHud && PC.Pawn != None && !PC.IsInState('Dead') && !bHideHUD;
+}
+
+// the game type's own HUD beside this one: it ticks on its own (pulses, objectives, countdown announcements), and
+// VRHUD draws it only into the capture. What the game tells the HUD directly is passed on (hits, announcements).
+simulated function SetShadow(class<HUD> C)
+{
+	if ( Shadow != None )
+		Shadow.Destroy();
+	Shadow = HudBase(Spawn(C, Owner));
+	if ( Shadow == None )
+		return;
+	// in 3D instead (or not at all): the crosshair (the laser), the world-pointing Assault markers
+	Shadow.bCrosshairShow = false;
+	Shadow.SetPropertyText("bOnHUDObjectiveNotification", "False");
+	Shadow.SetPropertyText("bShowInfoPods", "False");
+	Shadow.SetPropertyText("bShow3DArrow", "False");
+	Shadow.SetPropertyText("HealthBarViewDist", "0");   // Onslaught's node / core health bars (drawn at screen positions)
+	Log("UT2004VR: original HUD "$Shadow$" captured for the headset", 'UT2004VR');
+}
+
+// the countdown announcements ("five minutes remain"...) come from the game type's HUD when it runs beside this one
+function CheckCountdown(GameReplicationInfo GRI)
+{
+	if ( Shadow == None )
+		Super.CheckCountdown(GRI);
+}
+
+simulated event Destroyed()
+{
+	if ( Shadow != None )
+		Shadow.Destroy();
+	Super.Destroyed();
+}
+
+simulated function DisplayHit(vector HitDir, int Damage, class<DamageType> damageType)
+{
+	Super.DisplayHit(HitDir, Damage, damageType);
+	if ( Shadow != None )
+		Shadow.DisplayHit(HitDir, Damage, damageType);
+}
+
+// the game type's HUD alone: no first-person gun (UT draws it from the HUD, but not in behind view), no typing prompt
+simulated function DrawShadowHud(Canvas C)
+{
+	local bool bOldBehind, bOldTyping;
+	local Console Con;
+	local HUD_Assault AH;
+	local Vehicle TV;
+	local float TVSearch;
+	local GameObject GObj;
+
+	bOldBehind = PlayerOwner.bBehindView;
+	PlayerOwner.bBehindView = true;
+	if ( PlayerOwner.Player != None )
+		Con = PlayerOwner.Player.Console;
+	if ( Con != None )
+	{
+		bOldTyping = Con.bTyping;
+		Con.bTyping = false;
+	}
+	Shadow.bShowScoreBoard = false;
+	// Assault's tracked vehicle and game object are drawn in 3D (VRGameMarkers): out of the captured picture
+	AH = HUD_Assault(Shadow);
+	if ( AH != None )
+	{
+		TV = AH.TrackedVehicle;
+		TVSearch = AH.NextTrackedVehicleSearch;
+		AH.TrackedVehicle = None;
+		AH.NextTrackedVehicleSearch = Level.TimeSeconds + 10;
+		if ( AH.ASGRI != None )
+		{
+			GObj = AH.ASGRI.GameObject;
+			AH.ASGRI.GameObject = None;
+		}
+	}
+	Shadow.PostRender(C);
+	if ( AH != None )
+	{
+		AH.TrackedVehicle = TV;
+		AH.NextTrackedVehicleSearch = TVSearch;
+		if ( AH.ASGRI != None )
+			AH.ASGRI.GameObject = GObj;
+	}
+	PlayerOwner.bBehindView = bOldBehind;
+	if ( Con != None )
+		Con.bTyping = bOldTyping;
 }
 
 // one capture frame: the overlay alone on black (0) or white (1), and a two-pixel marker at the bottom right
@@ -169,7 +268,12 @@ simulated function DrawScoreCapture(Canvas C, bool bWhite)
 	C.SetPos(0, 0);
 	C.DrawTile(Texture'Engine.WhiteSquareTexture', C.ClipX, C.ClipY, 0, 0, 2, 2);
 	C.Reset();
-	if ( OverlayKind == 2 )
+	if ( OverlayKind == 3 )
+	{
+		DrawShadowHud(C);
+		OverlayTop = 0;
+	}
+	else if ( OverlayKind == 2 )
 	{
 		DrawSpectatingHud(C);
 		OverlayTop = SpectatorBarTop(C) / C.ClipY;

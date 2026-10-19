@@ -569,7 +569,8 @@ static bool g_worn = false;
 static bool g_panelRecentred = false;
 static bool g_placingScore = false;
 static int g_sbKind = 0;      // 1 UT's scoreboard, 2 UT's spectator bar
-static float g_sbTop = 0;     // the window share it covers, from the top (0..1): the panel shows only that strip   // PlacePanel for the scoreboard (its own distance)
+static float g_sbTop = 0;     // the window share it covers, from the top (0..1): the panel shows only that strip
+static float g_hlDist = 2.5f, g_hlHalfW = 1.18f, g_hlUp = -0.2f;   // kind 3, the game type's HUD: head-locked, metres   // PlacePanel for the scoreboard (its own distance)
 static bool g_panelSeated = false, g_panelSeatedWorn = false;   // placed facing the calibration; the headset was worn then   // the next placement follows the headset (you looked away from the panel)
 
 // the panel in front of a pose: the headset's, or (bSeated) the seated calibration - the main menus at startup
@@ -628,7 +629,13 @@ static void ScorePacket(const char* b)
 	}
 	// another overlay (scoreboard <-> spectator bar): new pictures, placed again
 	if (kind != g_sbKind) { g_sbHave[0] = g_sbHave[1] = false; g_sbPlaced = false; }
-	if (Now() - g_sbAt > 1000 || kind != g_sbKind) Log("overlay %s up (top %.3f) t=%.0f", kind == 2 ? "spectator bar" : "scoreboard", top, Now());
+	if (Now() - g_sbAt > 1000 || kind != g_sbKind) Log("overlay %s up (top %.3f) t=%.0f", kind == 3 ? "game HUD" : kind == 2 ? "spectator bar" : "scoreboard", top, Now());
+	if (kind == 3 && sp)
+	{
+		// "S 3 0 <distance> <half width> <centre up>"
+		float t, d, hw, up;
+		if (sscanf(b + 2, "%*d %f %f %f %f", &t, &d, &hw, &up) == 4 && d > 0.2f && hw > 0.05f) { g_hlDist = d; g_hlHalfW = hw; g_hlUp = up; }
+	}
 	g_sbKind = kind; g_sbTop = top; g_sbAt = Now();
 }
 
@@ -1232,8 +1239,22 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 	if (g_menuOpen || g_screenMode) g_sbPlaced = false;
 	else if (!standalone && ScoreUp() && g_sbHave[0] && g_sbHave[1] && g_sbPS && (g_havePose || g_mock))
 	{
-		if (!g_sbPlaced) { g_placingScore = true; PlacePanel(false); g_placingScore = false; g_panelPlaced = false; g_sbPlaced = true; }
-		g_pHalfW = (g_sbKind == 2 ? g_specWidth : g_sbWidth) * 0.5f;
+		if (g_sbKind == 3)
+		{
+			// the game type's HUD: in front of the head every frame, flat, where the VR HUD's corners would be (the
+			// pose this frame was rendered with, so it never lags the eyes)
+			const vr::HmdMatrix34_t& m = g_renderPose;
+			for (int k = 0; k < 3; k++)
+			{
+				g_pR[k] = m.m[k][0]; g_pU[k] = m.m[k][1]; g_pN[k] = m.m[k][2];   // +Z points back at the viewer
+				g_pC[k] = m.m[k][3] - m.m[k][2] * g_hlDist + m.m[k][1] * g_hlUp;
+			}
+			g_pRad = 0;
+			g_pHalfW = g_hlHalfW;
+			g_sbPlaced = false;
+		}
+		else if (!g_sbPlaced) { g_placingScore = true; PlacePanel(false); g_placingScore = false; g_panelPlaced = false; g_sbPlaced = true; }
+		if (g_sbKind != 3) g_pHalfW = (g_sbKind == 2 ? g_specWidth : g_sbWidth) * 0.5f;
 		g_pHalfH = g_pHalfW * (1 - g_sbTop) * g_sbH / std::max(1u, g_sbW);
 		DrawPanelInEye(dev, eyeTex[0], 0, true);
 		DrawPanelInEye(dev, eyeTex[1], 1, true);

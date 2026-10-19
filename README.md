@@ -49,6 +49,12 @@ relative to that, e.g. `VRHeight 10` ≈ +19 cm, saved. `VRScale <uu per m>` (de
 HUD (UT2004's own icons and digits): health cross + health lower left, ammo + the current ammo icon lower right,
 adrenaline pill + adrenaline upper right, and frags / spread to the leader / rank upper left, the match clock top centre (time left, or time played without a time limit; `bVRClock`); head-locked at a real stereo depth
 (`bVRHud`, `HudDistance=2.5` m, `HudSpread=2.9` overall, `HudSize=0.85` digit and icon size, `HudTopUp=0.56` and `HudBottomUp=-0.56` row heights, `HudLower=0.05` moves the whole HUD down, messages and scoreboard included); while dead it says how to respawn.
+With `bVROriginalHud=True` (the default) the headset shows the game type's own HUD instead of these items: Assault's
+round and reinforcement timers, Onslaught's radar map and node row, the team health and ammo widgets... It is drawn
+by a hidden copy of that HUD and captured like the scoreboard, as a flat layer where the VR HUD's corners are
+(`OriginalHudScale=1.3` times as wide; it refreshes about 11 times a second). What it points at in the world is drawn
+in 3D instead, on the object itself: Assault's objective markers (icon, defender shield, progress bar; blocked: icon +
+distance; out of view: an arrow at the layer's edge), its tracked vehicle and game object.
 
 Bots: `[UT2004VR.VRGame]` `BotNames=Alpha,Bravo,Charlie` uses your names in order (Alpha2… when they run out), empty keeps UT's roster names; `VRNumBots=4`, `BotSkill=2` (0 Novice … 3 Skilled … 7 Godlike); a URL `?NumBots=`/`?Difficulty=`
 overrides them. When you die, pull the trigger to respawn.

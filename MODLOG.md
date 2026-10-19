@@ -921,3 +921,22 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   with ADDED_BY_PATCH.txt listing its 1052 new files (to undo: copy the backup back, delete those). UT2004VR
   rebuilt clean. Mock: AS-Convoy as UT2k4Assault.ASGameInfo + VR mutator + 4 bots -> ASGameInfo::BeginRound, no
   crash, PlayerWalking in VR, clean exit; DM scoreboard capture and the menu panel/key shader still work.
+- The game types' own HUDs in VR (user: "Assault's HUD has a radar, target pointers, health bars and other
+  indicators that aren't in VR; own health and ammo look different"): VRPlayerController.ClientSetHUD swapped every
+  HudCDeathMatch subclass for VRHUD, dropping HUD_Assault (and ONSHUDOnslaught, CTF...). User chose (2026-10-19):
+  the original HUD, captured, plus 3D markers. Now VRHUD.SetShadow spawns the game type's HUD class beside it
+  (Owner = the controller); it ticks on its own (pulses, objectives, countdown announcements - VRHUD's own
+  CheckCountdown is off then) and gets DisplayHit passed on. Overlay kind 3 captures Shadow.PostRender (black /
+  white pair) with bBehindView forced for the call (the HUD draws the first-person gun via CanvasDrawActors unless
+  in behind view) and the console's bTyping off (no second prompt); its crosshair, bOnHUDObjectiveNotification,
+  bShowInfoPods, bShow3DArrow and HealthBarViewDist (ONS node bars) are off on the instance, and Assault's
+  TrackedVehicle / ASGRI.GameObject are hidden for the call. The proxy shows kind 3 head-locked (placed from the
+  render pose every frame), flat, centred where the VR HUD is, OriginalHudScale 1.3 x its width ("S 3 0 dist halfw
+  up"). VRGameMarkers draws Assault's world markers per eye from the shadow's state (OBJ, CheckObjectivePriority,
+  GetObjectiveColor, fPulse, ObjectiveScale, OBJ_Status / Objective_*_Indicator textures, health bar mats; colour
+  maths by hand: the HUD's color operators aren't visible outside HUD classes). Needs UT2k4Assault (stock, compiled
+  before UT2004VR). Exported its scripts to C:\UT2004-src\UT2k4Assault(Full) for reference.
+  Mock: AS-Convoy - timers, weapon bar, health/ammo, objective line in the layer; "[100m]" / "[273m]" objective
+  markers on the objectives, staying on them with the head turned 55 deg. DM - HudCDeathMatch's own HUD. ONS-Torlan
+  - radar map, node row. Not yet: info pods, the 3D pointing arrow, ONS node health bars and CTF flag markers in 3D;
+  the out-of-view arrows weren't seen yet (both objectives stayed inside the 102 deg eye in the test).

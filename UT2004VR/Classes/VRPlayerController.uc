@@ -120,6 +120,9 @@ var float LaserLastFire;
 var VRLaser Laser;
 var VRArcDot LaserDot;     // where shots start, uu in front of the controller tip
 var bool  bBtnFire, bBtnAlt, bBtnNext, bBtnPrev, bBtnDodge, bOldDodge, bBtnScores, bOldScores;
+var config bool bVROriginalHud;     // the headset shows the game type's own HUD (captured), not the drawn VR HUD items
+var config float OriginalHudScale;  // ... that HUD's width, relative to the VR HUD's (its corners at +-0.62 x HudSpread)
+var VRGameMarkers Markers;          // the game types' world-pointing markers (objectives...), drawn in 3D
 var config bool bVRScoreboardOriginal; // the headset shows UT's own scoreboard (captured by the proxy), not the drawn one
 var bool  bShowVRScores;            // scoreboard panel in the VR HUD (left X, or VRScores)
 var float MenuBtnDownTime;          // left Y: short press = Esc, hold = recenter
@@ -1077,6 +1080,43 @@ simulated function MousePitchView(out vector F, out vector U)
 	// UT pitch > 0 looks up: rotate forward toward up, i.e. about -right
 	F = Normal(RotAbout(F, -Ax, Ang));
 	U = Normal(RotAbout(U, -Ax, Ang));
+}
+
+// the game type's HUD layer (VRHUD kind 3): a flat 16:9 picture in front of the head, metres at HudDistance
+simulated function float LayerHalfRight()
+{
+	return 0.62 * HudSpread * OriginalHudScale;
+}
+
+simulated function float LayerHalfUp()
+{
+	if ( WinW <= 0 )
+		return LayerHalfRight() * 9 / 16;
+	return LayerHalfRight() * WinH / WinW;
+}
+
+simulated function float LayerCentreUp()
+{
+	return ((HudTopUp + HudBottomUp) * 0.5 - HudLower) * HudSpread;
+}
+
+// the layer's width in this eye's pixels (for the HUD's ResScale and fonts)
+simulated function float LayerPixels(ScriptedTexture Tex)
+{
+	return Tex.USize * (LayerHalfRight() / HudDistance) / Tan(EyeFOV * 0.5 * 3.14159265 / 180.0);
+}
+
+// a point on the layer (metres from its centre, right / up) -> pixel in this eye
+simulated function bool LayerPoint(ScriptedTexture Tex, vector Loc, rotator Rot, float R, float U, out float PX, out float PY)
+{
+	local vector X, Y, Z;
+	GetAxes(VRHeadRot, X, Y, Z);
+	return HudProject(Tex, VRHeadWorld + (X * HudDistance + Y * R + Z * (LayerCentreUp() + U)) * UUPerMeter, Loc, Rot, PX, PY);
+}
+
+simulated function bool UsingOriginalHud()
+{
+	return bVROriginalHud && VRHUD(myHUD) != None && VRHUD(myHUD).Shadow != None;
 }
 
 // spectating (a spectator, or a player watching before joining): UT shows its spectator bar then
@@ -2528,12 +2568,18 @@ exec function VRRespawn()
 // backdrop the headset panel needs (the VR HUD itself is drawn into the eyes by this controller)
 simulated function ClientSetHUD(class<HUD> newHUDClass, class<Scoreboard> newScoringClass)
 {
+	local class<HUD> Orig;
+
 	if ( newHUDClass != None && ClassIsChildOf(newHUDClass, class'HudCDeathMatch') && newHUDClass != class'VRHUD' )
 	{
 		Log("UT2004VR: HUD "$newHUDClass$" -> VRHUD", 'UT2004VR');
+		Orig = newHUDClass;
 		newHUDClass = class'VRHUD';
 	}
 	Super.ClientSetHUD(newHUDClass, newScoringClass);
+	// the game type's own HUD keeps running beside it: its screen part goes into the headset (VRHUD.Shadow)
+	if ( Orig != None && VRHUD(myHUD) != None && bVROriginalHud )
+		VRHUD(myHUD).SetShadow(Orig);
 }
 
 // as CinematicPlayer does on fire: open the main menu and leave the intro
@@ -3513,8 +3559,8 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 		DrawVehicleCrosshair(Tex, Loc, Rot);
 	if ( HudBig != None && !bVRScoreboardOriginal && (bShowVRScores || (myHUD != None && myHUD.bShowScoreBoard)) )
 		DrawVRScores(Tex, Loc, Rot);
-	// (not while spectating with UT's own spectator bar: it has no clock either)
-	if ( bVRClock && !(bVRScoreboardOriginal && IsVRSpectating()) )
+	// (not while spectating with UT's own spectator bar: it has no clock either; nor with the game type's own HUD)
+	if ( bVRClock && !(bVRScoreboardOriginal && IsVRSpectating()) && !UsingOriginalHud() )
 		DrawVRClock(Tex, Loc, Rot, HudTex, Small, Icon * Small / Big);
 	if ( bVRMessages && VRHUD(myHUD) != None )
 		VRHUD(myHUD).DrawVRMessages(self, Tex, Loc, Rot);
@@ -3553,6 +3599,17 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 			else
 				HudText(Tex, Loc, Rot, 0, PY, "Pull the trigger to respawn", HudBig, White, 1);
 		}
+		return;
+	}
+
+	// the game type's own HUD is in the headset (captured, VRHUD.Shadow): its health, ammo, scores and timers instead;
+	// what it points at in the world is drawn here, in 3D
+	if ( UsingOriginalHud() )
+	{
+		if ( Markers == None )
+			Markers = new class'VRGameMarkers';
+		if ( HUD_Assault(VRHUD(myHUD).Shadow) != None )
+			Markers.DrawAssault(self, HUD_Assault(VRHUD(myHUD).Shadow), Tex, Loc, Rot);
 		return;
 	}
 
@@ -4215,6 +4272,8 @@ defaultproperties
 	ScoresWidthDeg=40
 	bVRMessages=true
 	bVRScoreboardOriginal=true
+	bVROriginalHud=true
+	OriginalHudScale=1.3
 	bVRClock=true
 	VRMessageFontBoost=2
 	HudSpread=2.9
