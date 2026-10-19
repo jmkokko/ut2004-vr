@@ -52,9 +52,9 @@ adrenaline pill + adrenaline upper right, and frags / spread to the leader / ran
 With `bVROriginalHud=True` (the default) the headset shows the game type's own HUD instead of these items: Assault's
 round and reinforcement timers, Onslaught's radar map and node row, the team health and ammo widgets... It is drawn
 by a hidden copy of that HUD and captured like the scoreboard, as a flat layer where the VR HUD's corners are
-(`OriginalHudScale=1.3` times as wide; it refreshes about 11 times a second). What it points at in the world is drawn
+(`OriginalHudScale=1.0` times as wide; it refreshes about 11 times a second). What it points at in the world is drawn
 in 3D instead, on the object itself: Assault's objective markers (icon, defender shield, progress bar; blocked: icon +
-distance; out of view: an arrow at the layer's edge), its tracked vehicle and game object.
+distance; out of view: an arrow at the layer's edge), its tracked vehicle and game object, and an Assault turret's crosshair (with UT's green "will hit" square) on the point it hits. Assault turrets turn toward your gaze through their own steering and inertia (`ASTurretFollow=0.15` s).
 
 Bots: `[UT2004VR.VRGame]` `BotNames=Alpha,Bravo,Charlie` uses your names in order (Alpha2… when they run out), empty keeps UT's roster names; `VRNumBots=4`, `BotSkill=2` (0 Novice … 3 Skilled … 7 Godlike); a URL `?NumBots=`/`?Difficulty=`
 overrides them. When you die, pull the trigger to respawn.

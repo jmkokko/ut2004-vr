@@ -940,3 +940,17 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   markers on the objectives, staying on them with the head turned 55 deg. DM - HudCDeathMatch's own HUD. ONS-Torlan
   - radar map, node row. Not yet: info pods, the 3D pointing arrow, ONS node health bars and CTF flag markers in 3D;
   the out-of-view arrows weren't seen yet (both objectives stayed inside the 102 deg eye in the test).
+- Assault follow-ups (user: "the HUD spreads too wide, hard to read the outer indicators; the weapon doesn't shoot
+  at the gaze-guided crosshair but the middle of the view; a green rectangle in the HUD tracks something but is
+  always in the wrong place"): OriginalHudScale 1.3 -> 1.0. The crosshair + green rectangle were ASVehicle's
+  SpecialDrawCrosshair (bSpecialCrosshair: drawn even with bCrosshairShow off) at WorldToScreen of the turret's aim
+  point + DrawCrosshairAlignment; in the head-locked layer the window's view centre = the gaze, so it "followed the
+  gaze". bSpecialCrosshair is off for the capture and VRGameMarkers.DrawASVehicleCrosshair draws DefaultCrosshair
+  and the green CrosshairHitFeedbackTex at CalcWeaponFire's hit point per eye. The turret itself never followed the
+  gaze: ASTurret turns only through UpdateRocketAcceleration(aTurn, aLookUp), which our PlayerTurreting zeroes.
+  SteerASTurret now feeds the input that closes the gap to the head-traced target over ASTurretFollow 0.15 s,
+  inverting Accel = Inertia * Accel + dt * RotationSpeed * Change (so the turret's inertia stays). Its view frame
+  is the turret base's yaw: with Pawn.Rotation the view turned with the turret and it crept on (~0.5 deg/s in the
+  first mock run). Debug: VRAimLog; VRSpawnVehicle takes a distance (ASTurret_Minigun won't spawn in DM anyway).
+  Mock (AS-Convoy, VREnterVehicle Turret -> ASTurret_Minigun): turret within 4-10 rotator units of the gaze, steady;
+  crosshair + green square on the aim point, objective markers on.

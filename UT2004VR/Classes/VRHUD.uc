@@ -213,6 +213,8 @@ simulated function DrawShadowHud(Canvas C)
 	local Vehicle TV;
 	local float TVSearch;
 	local GameObject GObj;
+	local Pawn P;
+	local bool bOldSpecialCH;
 
 	bOldBehind = PlayerOwner.bBehindView;
 	PlayerOwner.bBehindView = true;
@@ -238,7 +240,17 @@ simulated function DrawShadowHud(Canvas C)
 			AH.ASGRI.GameObject = None;
 		}
 	}
+	// a vehicle's own crosshair (Assault turrets: at the screen position of their aim, plus a green "will hit"
+	// square) is drawn in 3D instead
+	P = PlayerOwner.Pawn;
+	if ( P != None )
+	{
+		bOldSpecialCH = P.bSpecialCrosshair;
+		P.bSpecialCrosshair = false;
+	}
 	Shadow.PostRender(C);
+	if ( P != None )
+		P.bSpecialCrosshair = bOldSpecialCH;
 	if ( AH != None )
 	{
 		AH.TrackedVehicle = TV;

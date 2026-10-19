@@ -96,6 +96,34 @@ function DrawAssault(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, 
 	}
 }
 
+// an Assault vehicle's / turret's crosshair (ASVehicle.SpecialDrawCrosshair): at the point its gun hits, with the
+// green square when the shot will reach it; the captured HUD leaves it out (it sits at a screen position)
+function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedTexture Tex, vector Loc, rotator Rot)
+{
+	local vector HL, HN;
+	local float PX, PY, R, TX, TY;
+	local color W, G;
+
+	if ( V.Health < 1 || V.DefaultCrosshair == None )
+		return;
+	if ( V.CalcWeaponFire(HL, HN) == None )
+		HL = V.GetCrosshairWorldLocation();
+	if ( !InView(PC, Tex, HL, Loc, Rot, PX, PY) )
+		return;
+	R = PC.LayerPixels(Tex) / 640.0;
+	TX = V.CrosshairScale * V.DefaultCrosshair.MaterialUSize() * R;
+	TY = V.CrosshairScale * V.DefaultCrosshair.MaterialVSize() * R;
+	W.R = 255; W.G = 255; W.B = 255; W.A = 255;
+	Tex.DrawTile(PX - TX * 0.5, PY - TY * 0.5, TX, TY, 0, 0, V.DefaultCrosshair.MaterialUSize(), V.DefaultCrosshair.MaterialVSize(),
+		V.DefaultCrosshair, W);
+	if ( V.CrosshairHitFeedbackTex != None && V.WeaponHitsCrosshairsHL() )
+	{
+		G.R = 0; G.G = 255; G.B = 0; G.A = 192;
+		Tex.DrawTile(PX - 16 * R, PY - 16 * R, 32 * R, 32 * R, 0, 0, V.CrosshairHitFeedbackTex.MaterialUSize(),
+			V.CrosshairHitFeedbackTex.MaterialVSize(), V.CrosshairHitFeedbackTex, G);
+	}
+}
+
 // HUD_Assault.IsObjectiveVisible, from the head
 function bool ObjectiveVisible(VRPlayerController PC, HUD_Assault H, GameObjective GO)
 {

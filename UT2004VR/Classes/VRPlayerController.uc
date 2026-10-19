@@ -122,6 +122,7 @@ var VRArcDot LaserDot;     // where shots start, uu in front of the controller t
 var bool  bBtnFire, bBtnAlt, bBtnNext, bBtnPrev, bBtnDodge, bOldDodge, bBtnScores, bOldScores;
 var config bool bVROriginalHud;     // the headset shows the game type's own HUD (captured), not the drawn VR HUD items
 var config float OriginalHudScale;  // ... that HUD's width, relative to the VR HUD's (its corners at +-0.62 x HudSpread)
+var config float ASTurretFollow;    // Assault turrets follow your gaze over this many seconds
 var VRGameMarkers Markers;          // the game types' world-pointing markers (objectives...), drawn in 3D
 var config bool bVRScoreboardOriginal; // the headset shows UT's own scoreboard (captured by the proxy), not the drawn one
 var bool  bShowVRScores;            // scoreboard panel in the VR HUD (left X, or VRScores)
@@ -553,7 +554,7 @@ exec function VRStateLog()
 
 // debug: get into the nearest vehicle (as pressing use next to it would)
 // debug: spawn a vehicle 900 uu ahead (the summon cheat drops it onto the player), e.g. VRSpawnVehicle Onslaught.ONSHoverTank
-exec function VRSpawnVehicle(string ClassName)
+exec function VRSpawnVehicle(string ClassName, optional float Dist)
 {
 	local class<Vehicle> C;
 	local Vehicle V;
@@ -563,8 +564,18 @@ exec function VRSpawnVehicle(string ClassName)
 	C = class<Vehicle>(DynamicLoadObject(ClassName, class'Class'));
 	R.Yaw = Pawn.Rotation.Yaw;
 	if ( C != None )
-		V = Spawn(C,,, Pawn.Location + 900 * vector(R) + vect(0,0,150), R);
-	Log("UT2004VR: spawned "$V, 'UT2004VR');
+		V = Spawn(C,,, Pawn.Location + FMax(Dist, 900 * int(Dist == 0)) * vector(R) + vect(0,0,150), R);
+	if ( V == None && C != None )
+		V = Spawn(C,,, Pawn.Location + 200 * vector(R) + vect(0,0,40), R);
+	if ( V == None && C != None )
+		V = Spawn(C,,, Pawn.Location + 600 * vector(R) + vect(0,0,400), R);
+	Log("UT2004VR: spawned "$V$" ("$C$")", 'UT2004VR');
+}
+
+// debug: the vehicle's aim against the gaze
+exec function VRAimLog()
+{
+	Log("UT2004VR: aim log pawn "$Pawn$" rot "$Pawn.Rotation$" head "$VRHeadRot$" state "$GetStateName(), 'UT2004VR');
 }
 
 exec function VREnterVehicle(optional string Part)
@@ -3035,6 +3046,15 @@ simulated function rotator VehicleFrame()
 		R.Yaw = TurretEntryYaw;
 		return R;
 	}
+	// Assault turrets turn toward your gaze (SteerASTurret): a frame turning with them would lead them on forever
+	if ( ASTurret(Pawn) != None )
+	{
+		if ( ASTurret(Pawn).TurretBase != None )
+			R.Yaw = ASTurret(Pawn).TurretBase.Rotation.Yaw;
+		else
+			R.Yaw = TurretEntryYaw;
+		return R;
+	}
 	return Pawn.Rotation;
 }
 
@@ -3084,10 +3104,34 @@ state PlayerTurreting
 			if ( Level.TimeSeconds < DebugTurnUntil )
 				aTurn = DebugTurn;
 		}
+		// Assault's turrets turn only from this input (their own Rotation is the aim): steer them toward the gaze
+		if ( VRActive() && ASTurret(Pawn) != None )
+			SteerASTurret(ASTurret(Pawn), DeltaTime);
 		Super.PlayerMove(DeltaTime);
-		if ( VRActive() && Vehicle(Pawn) != None )
+		if ( VRActive() && Vehicle(Pawn) != None && ASTurret(Pawn) == None )
 			GazeVehicleRotation();
 	}
+}
+
+// the yaw / pitch input that turns an Assault turret toward what you look at (traced from the head, so the shot
+// lands there despite the gun's offset), closing the gap over ASTurretFollow seconds through its own inertia
+function SteerASTurret(ASTurret T, float DeltaTime)
+{
+	local vector HitL, HitN, End;
+	local rotator Want, Err;
+	local float K;
+
+	if ( DeltaTime <= 0 || T.RotationSpeed <= 0 )
+		return;
+	End = VRHeadWorld + vector(VRHeadRot) * 20000;
+	if ( T.Trace(HitL, HitN, End, VRHeadWorld, true) == None )
+		HitL = End;
+	Want = rotator(HitL - T.GetFireStart());
+	Err = Normalize(Want - T.Rotation);
+	K = FMin(1, DeltaTime / FMax(ASTurretFollow, 0.01));
+	// UpdateRocketAcceleration: Accel = Inertia * Accel + dt * RotationSpeed * Change, then Rotation += Accel
+	aTurn = (Err.Yaw * K - T.RotationInertia * T.YawAccel) / (DeltaTime * T.RotationSpeed);
+	aLookUp = (Err.Pitch * K - T.RotationInertia * T.PitchAccel) / (DeltaTime * T.RotationSpeed);
 }
 
 // debug: turn as the mouse would, aTurn units for 2 s (turrets: PlayerTurreting reads aTurn)
@@ -3610,6 +3654,8 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 			Markers = new class'VRGameMarkers';
 		if ( HUD_Assault(VRHUD(myHUD).Shadow) != None )
 			Markers.DrawAssault(self, HUD_Assault(VRHUD(myHUD).Shadow), Tex, Loc, Rot);
+		if ( ASVehicle(Pawn) != None )
+			Markers.DrawASVehicleCrosshair(self, ASVehicle(Pawn), Tex, Loc, Rot);
 		return;
 	}
 
@@ -4273,7 +4319,8 @@ defaultproperties
 	bVRMessages=true
 	bVRScoreboardOriginal=true
 	bVROriginalHud=true
-	OriginalHudScale=1.3
+	OriginalHudScale=1.0
+	ASTurretFollow=0.15
 	bVRClock=true
 	VRMessageFontBoost=2
 	HudSpread=2.9
