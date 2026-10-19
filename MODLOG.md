@@ -992,3 +992,13 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   is wanted (F1 / VRScores / UT's own while dead), as HUD.PostRender does; the 3D markers and our own respawn/join
   hints are off then (the scoreboard has UT's own). Kind 1 (the curved panel) is only the bVROriginalHud=False
   fallback now. Mock (DM, VRScores): the scoreboard in the head-locked layer, the proxy only ever saw "game HUD".
+- Onslaught (user: "game messages are behind the upper part of the HUD; turret and vehicle crosshairs should work
+  like Assault's, in 3D on the point the weapons hit"): the eye messages were drawn into the eye texture and the
+  proxy laid the HUD layer over them. With the layer up, DrawShadowHud now draws VRHUD's own DisplayLocalMessages /
+  DisplayMessages / DrawTypingPrompt into the capture after the game type's HUD (UT's 2D layout and fonts, on top),
+  and the eye messages are off. ONS vehicles and turrets with the original HUD: no laser and no VR crosshair;
+  VRGameMarkers.DrawONSCrosshair draws UT's crosshair (Shadow.Crosshairs[CrosshairStyle], CrosshairColor /
+  CrosshairScale) and, while ONSWeapon.bCorrectAim, the vehicle's CrosshairTexture (tankBarrelAligned) at the
+  muzzle trace's hit point (VehicleAimTrace); the vehicle's own centred aim crosshair is zero-sized for the capture
+  (CrosshairX/Y = -0.5: its tile is 2X+1; bCorrectAim is const). Mock (ONS-Torlan, spawned Goliath): green UT
+  crosshair on the wall the barrel points at; VRTestMessages lines in the layer over the scene.

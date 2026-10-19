@@ -194,6 +194,57 @@ function DrawFighterTarget(VRPlayerController PC, ASVehicle_SpaceFighter F, HUD_
 	Tex.DrawTile(X1 - BX, Y1 - BY, BX, BY, 0, 0, -32, -32, Material'AS_FX_TX.Icons.InfoBracket_FB', C);
 }
 
+// an Onslaught vehicle's / turret's crosshairs where its gun hits (traced from its muzzle along its own aim, so a
+// gun that turns at a set rate shows where it really fires): UT's own crosshair (HudCDeathMatch.DrawCrosshair:
+// your style, colour and scale) and the vehicle's "barrel aligned" one (its DrawHUD, while the gun is on target)
+function DrawONSCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex, vector Loc, rotator Rot)
+{
+	local vector Start, Dir, HL;
+	local ONSWeapon W;
+	local byte bHit;
+	local float PX, PY, RS, TW, TH, S;
+	local int i;
+	local Material M;
+	local color C;
+	local ONSVehicle OV;
+	local ONSWeaponPawn WP;
+
+	if ( !PC.VehicleAimTrace(Start, Dir, HL, W, bHit) || !InView(PC, Tex, HL, Loc, Rot, PX, PY) )
+		return;
+	RS = LayerRes(PC, Tex);
+	// UT's crosshair (HUD.CrosshairStyle from the player's settings)
+	if ( H != None && H.Crosshairs.Length > 0 )
+	{
+		i = Clamp(H.CrosshairStyle, 0, H.Crosshairs.Length - 1);
+		M = H.Crosshairs[i].WidgetTexture;
+		if ( M != None )
+		{
+			TW = Abs(H.Crosshairs[i].TextureCoords.X2 - H.Crosshairs[i].TextureCoords.X1);
+			TH = Abs(H.Crosshairs[i].TextureCoords.Y2 - H.Crosshairs[i].TextureCoords.Y1);
+			S = H.Crosshairs[i].TextureScale * 0.5 * H.CrosshairScale * RS;
+			C = H.CrosshairColor;
+			Tex.DrawTile(PX - TW * S * 0.5, PY - TH * S * 0.5, TW * S, TH * S, H.Crosshairs[i].TextureCoords.X1,
+				H.Crosshairs[i].TextureCoords.Y1, TW, TH, M, C);
+		}
+	}
+	// the vehicle's own aim crosshair while the gun is on target
+	OV = ONSVehicle(PC.Pawn);
+	WP = ONSWeaponPawn(PC.Pawn);
+	if ( W != None && W.bCorrectAim && OV != None && W.bShowAimCrosshair && OV.CrosshairTexture != None )
+		AimTile(PC, Tex, PX, PY, OV.CrosshairTexture, OV.CrosshairX, OV.CrosshairY, OV.CrosshairColor);
+	else if ( W != None && W.bCorrectAim && WP != None && WP.CrosshairTexture != None )
+		AimTile(PC, Tex, PX, PY, WP.CrosshairTexture, WP.CrosshairX, WP.CrosshairY, WP.CrosshairColor);
+}
+
+// a tile CrosshairX/Y window pixels from the centre (scaled from the window to the layer in this eye)
+function AimTile(VRPlayerController PC, ScriptedTexture Tex, float PX, float PY, Texture T, float CX, float CY, color C)
+{
+	local float K;
+	K = PC.LayerPixels(Tex) / FMax(PC.WinW, 1);
+	C.A = 255;
+	Tex.DrawTile(PX - CX * K, PY - CY * K, (CX * 2 + 1) * K, (CY * 2 + 1) * K, 0, 0, T.USize, T.VSize, T, C);
+}
+
 // HUD_Assault.IsObjectiveVisible, from the head
 function bool ObjectiveVisible(VRPlayerController PC, HUD_Assault H, GameObjective GO)
 {

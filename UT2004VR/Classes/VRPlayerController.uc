@@ -364,7 +364,7 @@ event PlayerTick(float DeltaTime)
 	{
 		// the hand-held gun stays behind while you drive; the laser comes from the vehicle's gun
 		// (not in Assault's vehicles and turrets: their own crosshair is on the aim point, VRGameMarkers)
-		if ( bVehicleLaser && ASVehicle(Pawn) == None && VehicleAimTrace(VStart, VDir, VHit, VGun, VHitB) )
+		if ( bVehicleLaser && ASVehicle(Pawn) == None && !UsingOriginalHud() && VehicleAimTrace(VStart, VDir, VHit, VGun, VHitB) )
 			UpdateLaser(true, VStart, VDir, true, VHit, VHitB != 0);
 		else
 			UpdateLaser(false, vect(0,0,0), vect(1,0,0));
@@ -3611,14 +3611,23 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 			VRHUD(myHUD).DrawVRMessages(self, Tex, Loc, Rot);
 		return;
 	}
-	if ( Vehicle(Pawn) != None )
+	// in a vehicle: UT's crosshairs where its gun hits (with the original HUD), else the VR crosshair / laser
+	if ( Vehicle(Pawn) != None && UsingOriginalHud() && ASVehicle(Pawn) == None )
+	{
+		if ( Markers == None )
+			Markers = new class'VRGameMarkers';
+		if ( !VRHUD(myHUD).WantScores(self) )
+			Markers.DrawONSCrosshair(self, VRHUD(myHUD).Shadow, Tex, Loc, Rot);
+	}
+	else if ( Vehicle(Pawn) != None )
 		DrawVehicleCrosshair(Tex, Loc, Rot);
 	if ( HudBig != None && !bVRScoreboardOriginal && (bShowVRScores || (myHUD != None && myHUD.bShowScoreBoard)) )
 		DrawVRScores(Tex, Loc, Rot);
 	// (not while spectating with UT's own spectator bar: it has no clock either; nor with the game type's own HUD)
 	if ( bVRClock && !(bVRScoreboardOriginal && IsVRSpectating()) && !UsingOriginalHud() )
 		DrawVRClock(Tex, Loc, Rot, HudTex, Small, Icon * Small / Big);
-	if ( bVRMessages && VRHUD(myHUD) != None )
+	// (with the game type's HUD layer up, the messages are drawn into it, on top of the HUD)
+	if ( bVRMessages && VRHUD(myHUD) != None && !(VRHUD(myHUD).OverlayKind == 3 && VRHUD(myHUD).ScoreFrame > 0) )
 		VRHUD(myHUD).DrawVRMessages(self, Tex, Loc, Rot);
 
 	if ( Pawn == None )

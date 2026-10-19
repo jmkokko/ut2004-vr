@@ -199,6 +199,23 @@ simulated function SetShadow(class<HUD> C)
 	Log("UT2004VR: original HUD "$Shadow$" captured for the headset", 'UT2004VR');
 }
 
+// UT's own 2D message drawing into the HUD layer: the special messages, the console lines and the typing prompt
+simulated function DrawLayerMessages(Canvas C, Console Con, bool bTyping)
+{
+	local Plane OldCM;
+	C.Reset();
+	OldCM = C.ColorModulate;
+	DisplayLocalMessages(C);
+	C.ColorModulate = OldCM;
+	C.Reset();
+	DisplayMessages(C);
+	if ( Con != None && bTyping )
+	{
+		C.Reset();
+		DrawTypingPrompt(C, Con.TypedStr, Con.TypedStrPos);
+	}
+}
+
 // the countdown announcements ("five minutes remain"...) come from the game type's HUD when it runs beside this one
 function CheckCountdown(GameReplicationInfo GRI)
 {
@@ -232,6 +249,9 @@ simulated function DrawShadowHud(Canvas C)
 	local Pawn P;
 	local bool bOldSpecialCH;
 	local Vehicle FTarget;
+	local ONSVehicle OV;
+	local ONSWeaponPawn WP;
+	local float CHX, CHY;
 
 	bOldBehind = PlayerOwner.bBehindView;
 	PlayerOwner.bBehindView = true;
@@ -247,6 +267,11 @@ simulated function DrawShadowHud(Canvas C)
 	{
 		C.Reset();
 		ScoreBoard.DrawScoreboard(C);
+		if ( ScoreBoard.bDisplayMessages )
+			DrawLayerMessages(C, Con, bOldTyping);
+		PlayerOwner.bBehindView = bOldBehind;
+		if ( Con != None )
+			Con.bTyping = bOldTyping;
 		return;
 	}
 	Shadow.bShowScoreBoard = false;
@@ -278,9 +303,33 @@ simulated function DrawShadowHud(Canvas C)
 		FTarget = ASVehicle_SpaceFighter(P).CurrentTarget;
 		ASVehicle_SpaceFighter(P).CurrentTarget = None;
 	}
+	// an Onslaught vehicle's / turret's "barrel aligned" crosshair (at the screen centre = the view, not the gun): in
+	// 3D instead (VRGameMarkers); zero-sized for the capture (its tile is CrosshairX * 2 + 1 wide)
+	OV = ONSVehicle(P);
+	WP = ONSWeaponPawn(P);
+	if ( OV != None )
+	{
+		CHX = OV.CrosshairX; CHY = OV.CrosshairY;
+		OV.CrosshairX = -0.5; OV.CrosshairY = -0.5;
+	}
+	else if ( WP != None )
+	{
+		CHX = WP.CrosshairX; CHY = WP.CrosshairY;
+		WP.CrosshairX = -0.5; WP.CrosshairY = -0.5;
+	}
 	Shadow.PostRender(C);
+	if ( OV != None )
+	{
+		OV.CrosshairX = CHX; OV.CrosshairY = CHY;
+	}
+	else if ( WP != None )
+	{
+		WP.CrosshairX = CHX; WP.CrosshairY = CHY;
+	}
 	if ( P != None )
 		P.bSpecialCrosshair = bOldSpecialCH;
+	// the game messages go on top of the HUD, as in 2D (in the eyes they were under the layer)
+	DrawLayerMessages(C, Con, bOldTyping);
 	if ( ASVehicle_SpaceFighter(P) != None )
 		ASVehicle_SpaceFighter(P).CurrentTarget = FTarget;
 	if ( AH != None )
