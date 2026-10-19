@@ -622,6 +622,8 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   LevelInfo.Reset -> ConsoleCommand("OBJ GARBAGE") -> GC TestReach -> "ASGameInfo ...: Offset mismatch". The VR
   mutator only makes it immediate (bQuickStart + auto-join). User chose to skip Assault (2026-10-13); options left
   open: a newer OldUnreal preview, or a VR Assault gametype whose ResetLevel skips the garbage collection.
+  Fixed upstream in Preview 18 ("crashed the game when invoking the garbage collector from actor state code ...
+  AS-Convoy ... quickstart", OldUnreal/UT2004Patches#420); see 2026-10-19 below.
 - Vehicles (user: "inside any vehicle the viewpoint is inside it, can't see out"): the vehicle is the pawn, so the
   eyes came from its centre + seated head height, and Onslaught vehicles start in behind view (mesh visible). In a
   Vehicle(Pawn): bBehindView = false + V.POVChanged(self, true) on entry (UT then sets bOwnerNoSee per
@@ -912,3 +914,10 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   dialog alone while it is on top (its GUIPage.bRenderWorld off, put back after; G.Count() > 1) and says so in "R
   ... 1"; the proxy keys a dialog in the main menus too. Mock: in-game quit dialog alone in the window, eyes keep
   rendering behind the panel; main-menu quit dialog (debug VRConsole.VROpenMenu) alone in the dark room, clean edges.
+- OldUnreal Patch 3374 Preview 23 in the lab (2026-10-19, user's choice: lab only, C:\UnrealTournament2004 stays on
+  Preview 9). Preview 9 = build 2026-02-07; Preview 23 = build 2026-07-18 (d1b145e1), from the GitHub release
+  OldUnreal-UT2004Patch3374-Windows-094b94dc.zip (sha256 fd81fa55...4bd3). It holds no d3d9.dll and no user inis
+  (only Build.ini, Default*.ini). The 525 lab files it overwrote are in C:\UT2004-VRLab-backup-preview9-20261019,
+  with ADDED_BY_PATCH.txt listing its 1052 new files (to undo: copy the backup back, delete those). UT2004VR
+  rebuilt clean. Mock: AS-Convoy as UT2k4Assault.ASGameInfo + VR mutator + 4 bots -> ASGameInfo::BeginRound, no
+  crash, PlayerWalking in VR, clean exit; DM scoreboard capture and the menu panel/key shader still work.
