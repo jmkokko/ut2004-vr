@@ -1010,3 +1010,4 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   the message options apply as they are (VRHUD draws the messages itself), and the 3D ONS crosshair follows
   myHUD.bCrosshairShow. Debug VRHudLog. Mock: `set UT2004VR.VRHUD HudScale 0.6` + `bShowWeaponBar False` -> both
   HUDs 0.60 / False. Note for tests: the game saves HUD settings into User.ini at exit - back it up (done here).
+- Keyboard-mode gun pitch (user: "pushing/pulling the mouse rotates the gun about the Y axis; it should keep its place relative to the head, as it does when turning"): GunTip dropped KBMChestBelowEyes along the world up and then added KBMGunOffset in aim axes, so a mouse pitch swung the gun about a chest point. The drop is now along the aim's up too: the whole offset turns with the aim about the eyes; level aim gives the same place as before. Mock (VRAimPitch 0 / -30 / +30): the gun in the same place in view in all three.

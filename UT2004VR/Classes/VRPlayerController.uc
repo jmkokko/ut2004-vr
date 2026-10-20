@@ -1392,15 +1392,15 @@ simulated function vector GunTip()
 	local vector Loc, Dir, X, Y, Z;
 	if ( bKeyboardMouse )
 	{
-		// keyboard/mouse: a fixed "hand" in front of the chest that turns and pitches with the mouse aim. It follows
-		// the head's horizontal position (not the pawn's), so where it sits in view doesn't depend on how you sat
-		// when the session started; head turns stay freelook.
-		// height follows the head too: before the height calibration (~2 s) the head can sit below a floor-based
-		// chest point, and the gun was then seen from below, at the top of the view, looking upside down
+		// keyboard/mouse: a fixed "hand" in front of the chest that turns and pitches with the mouse aim, as one
+		// piece about the eyes: the chest drop is along the aim's own up, so tilting the view with the mouse keeps the
+		// gun where it sits in view (with the drop along the world's up it pivoted about the chest and swung toward
+		// or away from the face). Level aim: the same place as before. It follows the head's position (not the
+		// pawn's), so where it sits in view doesn't depend on how you sat when the session started (before the
+		// height calibration a floor-based chest point put it above the view, upside down); head turns stay freelook.
 		Loc = VRHeadWorld;
-		Loc.Z -= KBMChestBelowEyes * UUPerMeter;
 		GetAxes(CleanAim(Rotation), X, Y, Z);
-		return Loc + KBMGunOffset.X * X + KBMGunOffset.Y * Y + KBMGunOffset.Z * Z;
+		return Loc + KBMGunOffset.X * X + KBMGunOffset.Y * Y + (KBMGunOffset.Z - KBMChestBelowEyes * UUPerMeter) * Z;
 	}
 	GetHandWorld(1, Loc, Dir);
 	return Loc;
