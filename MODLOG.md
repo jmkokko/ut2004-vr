@@ -1027,3 +1027,4 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   that. GetMuzzle now adds the pawn's move since GunTarget was placed (GunTargetPawnLoc). Glue removed. GunLagMax
   0.04 -> 0.015 m (4 cm was reached in two frames at strafe speed: a jump). Mock (strafing both ways at 440 uu/s,
   measured at render time after the gun is placed for the eyes): beam start to muzzle 0.00 uu, lag 0.79 uu.
+- Gun lag onset (user: "a bit smoother and slower at the start of strafing"): the raw lag reaches its cap in the first frames at strafe speed; the shown lag now eases toward it (GunLagSmooth 0.15 s, first-order), so it ramps in and out. Mock trace (VRLagTrace): shown 0.18 / 0.35 / 0.47 / 0.56 uu at 0.05 / 0.10 / 0.15 / 0.20 s, 0.75 at 0.5 s (cap 0.79).

@@ -23,8 +23,10 @@ var config vector KBMGunOffset;     // that gun's handle relative to the chest p
 var config float KBMChestBelowEyes; // chest point: this far (m) below the stock eye height
 var config float GunLagTime;        // keyboard/mouse: the gun eases back to its place over this many seconds when you move
 var config float GunLagMax;         // ... lagging at most this far (m); 0 = off
-var vector GunLag, GunLagHead;
+var vector GunLag, GunLagRaw, GunLagHead;
+var config float GunLagSmooth;      // ... easing in and out over this many seconds
 var vector GunTargetPawnLoc;
+var float LagTraceUntil;            // debug: VRLagTrace
 var float BeamGap;                  // debug: VRBeamLog        // Pawn.Location when GunTarget (the muzzle) was placed
 var float GunLagAt;
 var config bool  bSteerByGaze;      // seated head steering: walking forward while looking aside turns the view itself
@@ -600,6 +602,13 @@ function MeasureBeamGap()
 		if ( F != None && F.Beam != None )
 			BeamGap = VSize(F.Beam.Location - GunTarget);
 	}
+}
+
+// debug: strafe and log the gun lag every frame for 0.6 s
+exec function VRLagTrace()
+{
+	VRStick("-1 0");
+	LagTraceUntil = Level.TimeSeconds + 0.6;
 }
 
 // debug: the gun's rubber-band lag and the Link beam's start against the muzzle
@@ -1426,7 +1435,7 @@ simulated function rotator GunRot()
 }
 
 // keyboard/mouse: a small rubber band - when the head moves (strafing, walking, jumping, crouching) the gun first stays
-// behind, at most GunLagMax metres, and eases back over GunLagTime seconds. Turning doesn't move the head: no lag.
+// behind, at most GunLagMax metres, and eases back over GunLagTime seconds; GunLagSmooth eases it in and out. Turning doesn't move the head: no lag.
 simulated function vector KBMGunLag()
 {
 	local vector D;
@@ -1442,13 +1451,23 @@ simulated function vector KBMGunLag()
 		GunLagHead = VRHeadWorld;
 		// a respawn, teleport or level start: no lag
 		if ( Dt <= 0 || Dt > 0.5 || VSize(D) > 2.0 * UUPerMeter )
+		{
+			GunLagRaw = vect(0,0,0);
 			GunLag = vect(0,0,0);
+		}
 		else
 		{
-			GunLag = GunLag * Exp(-Dt / GunLagTime) - D;
-			if ( VSize(GunLag) > GunLagMax * UUPerMeter )
-				GunLag = Normal(GunLag) * GunLagMax * UUPerMeter;
+			GunLagRaw = GunLagRaw * Exp(-Dt / GunLagTime) - D;
+			if ( VSize(GunLagRaw) > GunLagMax * UUPerMeter )
+				GunLagRaw = Normal(GunLagRaw) * GunLagMax * UUPerMeter;
+			// what you see eases toward it, so the gun starts drifting gently instead of jumping on the first step
+			if ( GunLagSmooth > 0 )
+				GunLag += (GunLagRaw - GunLag) * (1 - Exp(-Dt / GunLagSmooth));
+			else
+				GunLag = GunLagRaw;
 		}
+		if ( Level.TimeSeconds < LagTraceUntil )
+			Log("UT2004VR: lag trace t "$(Level.TimeSeconds - (LagTraceUntil - 0.6))$" raw "$VSize(GunLagRaw)$" shown "$VSize(GunLag), 'UT2004VR');
 	}
 	return GunLag;
 }
@@ -4424,6 +4443,7 @@ defaultproperties
 	KBMChestBelowEyes=0.32
 	GunLagTime=0.12
 	GunLagMax=0.015
+	GunLagSmooth=0.15
 	SteerGain=1.5
 	SteerDeadzone=8
 	SteerMaxDegPerSec=120
