@@ -1020,3 +1020,10 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   GunLagTime 0.12 s, at most GunLagMax 0.04 m; reset on jumps > 2 m / pauses), added in GunTip, so the muzzle and
   the beam follow. Controller mode: the hand, no lag. Debug: VRBeamLog; VRStick now strafes / walks in keyboard
   mode too (aStrafe / aForward). Mock: lag 2.1 uu while strafing, 0 after; beam leaving the muzzle in the eye.
+- Link beam, take 2 (user: "strafing left the gun jumps right and the beam is still detached, further right"): the
+  render-time glue was too late (the beam's particles were already laid out from its Tick position), and the real
+  gap was a frame of movement: GetMuzzle (which VRPawn.CalcDrawOffset / EyePosition feed to GetEffectStart and the
+  shots) returned GunTarget from the controller's tick, before the pawn's physics moved it; the beam ticks after
+  that. GetMuzzle now adds the pawn's move since GunTarget was placed (GunTargetPawnLoc). Glue removed. GunLagMax
+  0.04 -> 0.015 m (4 cm was reached in two frames at strafe speed: a jump). Mock (strafing both ways at 440 uu/s,
+  measured at render time after the gun is placed for the eyes): beam start to muzzle 0.00 uu, lag 0.79 uu.

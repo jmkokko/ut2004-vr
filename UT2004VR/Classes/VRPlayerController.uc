@@ -24,6 +24,8 @@ var config float KBMChestBelowEyes; // chest point: this far (m) below the stock
 var config float GunLagTime;        // keyboard/mouse: the gun eases back to its place over this many seconds when you move
 var config float GunLagMax;         // ... lagging at most this far (m); 0 = off
 var vector GunLag, GunLagHead;
+var vector GunTargetPawnLoc;
+var float BeamGap;                  // debug: VRBeamLog        // Pawn.Location when GunTarget (the muzzle) was placed
 var float GunLagAt;
 var config bool  bSteerByGaze;      // seated head steering: walking forward while looking aside turns the view itself
 var config float SteerGain;         // turn speed in deg/s per degree of look angle (times forward stick)
@@ -585,6 +587,21 @@ exec function VRShowCapture()
 		VRHUD(myHUD).bDebugShowCapture = !VRHUD(myHUD).bDebugShowCapture;
 }
 
+// debug (VRBeamLog): the Link beam's start against the muzzle of the gun the eyes draw, measured at render time
+function MeasureBeamGap()
+{
+	local int i;
+	local LinkFire F;
+	if ( Pawn == None || LinkGun(Pawn.Weapon) == None )
+		return;
+	for ( i = 0; i < 2; i++ )
+	{
+		F = LinkFire(Pawn.Weapon.GetFireMode(i));
+		if ( F != None && F.Beam != None )
+			BeamGap = VSize(F.Beam.Location - GunTarget);
+	}
+}
+
 // debug: the gun's rubber-band lag and the Link beam's start against the muzzle
 exec function VRBeamLog()
 {
@@ -597,7 +614,7 @@ exec function VRBeamLog()
 		{
 			F = LinkFire(Pawn.Weapon.GetFireMode(i));
 			if ( F != None && F.Beam != None )
-				D = VSize(F.Beam.Location - GunTarget);
+				D = BeamGap;
 		}
 	Log("UT2004VR: beam log lag "$VSize(GunLag)$" uu, beam start to muzzle "$D$" uu, speed "$VSize(Pawn.Velocity), 'UT2004VR');
 }
@@ -1436,27 +1453,6 @@ simulated function vector KBMGunLag()
 	return GunLag;
 }
 
-// the Link Gun's beam starts where UT puts it for a first-person gun (from the pawn and the aim, in its own Tick);
-// right before the eyes render it is moved onto the muzzle of the gun you see, so the two never come apart
-function GlueBeams()
-{
-	local Weapon W;
-	local int i;
-	local LinkFire F;
-
-	if ( Pawn == None || !GunActive() || !bGunCalibrated )
-		return;
-	W = Pawn.Weapon;
-	if ( LinkGun(W) == None )
-		return;
-	for ( i = 0; i < 2; i++ )
-	{
-		F = LinkFire(W.GetFireMode(i));
-		if ( F != None && F.Beam != None && !F.Beam.bDeleteMe )
-			F.Beam.SetLocation(GunTarget);
-	}
-}
-
 simulated function vector GunTip()
 {
 	local vector Loc, Dir, X, Y, Z;
@@ -1480,8 +1476,11 @@ simulated function bool GetMuzzle(out vector Muzzle)
 {
 	if ( !GunActive() )
 		return false;
+	// the muzzle as last placed, moved on with the pawn since: weapons and the Link beam ask during their own Tick,
+	// after the pawn moved this frame but before the gun is placed again for the eyes (the beam trailed the gun
+	// by a frame of movement, ~10 uu while strafing)
 	if ( bGunCalibrated )
-		Muzzle = GunTarget;
+		Muzzle = GunTarget + (Pawn.Location - GunTargetPawnLoc);
 	else
 		Muzzle = GunTip() + vector(Rotation) * MuzzleForward;
 	return true;
@@ -1928,6 +1927,7 @@ function UpdateGun()
 		}
 	}
 	GunTarget = TipW;
+	GunTargetPawnLoc = Pawn.Location;
 	GunHandW = HandW;
 	GunHandleW = A.Location + G.GripL.X * Xw + G.GripL.Y * Yw + G.GripL.Z * Zw;
 	UpdateLaser(true, TipW, X);
@@ -3430,7 +3430,10 @@ simulated event RenderTexture(ScriptedTexture Tex)
 	// Physics moves the pawn after PlayerMove placed the gun, so re-place it now, right before the eyes render
 	// (otherwise it lags one frame behind the camera and slides sideways while strafing)
 	if ( Eye == 0 && Pawn != None && GunActive() )
+	{
 		UpdateGun();
+		MeasureBeamGap();
+	}
 	GetEyeView(Eye, Loc, Rot);
 	if ( bCalibGun && Eye == 0 && GunModel != None && Level.TimeSeconds > NextGunEyeLog )
 	{
@@ -4420,7 +4423,7 @@ defaultproperties
 	KBMGunOffset=(X=16,Y=7,Z=-6)
 	KBMChestBelowEyes=0.32
 	GunLagTime=0.12
-	GunLagMax=0.04
+	GunLagMax=0.015
 	SteerGain=1.5
 	SteerDeadzone=8
 	SteerMaxDegPerSec=120
