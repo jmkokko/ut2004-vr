@@ -70,7 +70,9 @@ The desktop window shows a normal mono view; keep it small (1280x720), since it 
   re-centre the chair's forward.
 - Each gun has its own keyboard-mode offset: `VRGrip <forward> <right> <up>` in this mode moves the current gun on screen and saves it as `KBMGrips` (separate from the controller-mode `Grips`), e.g. `VRGrip 0 0 -4` lowers it; `VRGripReset` clears it.
 - The gun sits at a fixed spot in front of the chest (`KBMGunOffset`, `KBMChestBelowEyes`) and points where the mouse
-  aims; shots, beams and the laser follow it. The SteamVR controllers do nothing in this mode.
+  aims; shots, beams and the laser follow it. Tilting the aim with the mouse keeps it in the same place in view. When
+  you move it lags a little and catches up (`GunLagMax=0.04` m, `GunLagTime=0.12` s; `GunLagMax=0` turns it off).
+  The SteamVR controllers do nothing in this mode.
 - The UT2004 desktop window needs keyboard/mouse focus (click into it).
 
 ## Menu in VR
