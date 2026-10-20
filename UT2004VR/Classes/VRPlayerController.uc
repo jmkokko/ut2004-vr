@@ -21,6 +21,10 @@ var config float HeadingTurnRate;   // that turn: rate per second per unit of fo
 var bool  bKeyboardMouse;           // keyboard/mouse mode: WASD + mouse like flat UT, headset = freelook, gun fixed to the body (saved in [VRTuning] only)
 var config vector KBMGunOffset;     // that gun's handle relative to the chest point, in aim axes (uu)
 var config float KBMChestBelowEyes; // chest point: this far (m) below the stock eye height
+var config float GunLagTime;        // keyboard/mouse: the gun eases back to its place over this many seconds when you move
+var config float GunLagMax;         // ... lagging at most this far (m); 0 = off
+var vector GunLag, GunLagHead;
+var float GunLagAt;
 var config bool  bSteerByGaze;      // seated head steering: walking forward while looking aside turns the view itself
 var config float SteerGain;         // turn speed in deg/s per degree of look angle (times forward stick)
 var config float SteerDeadzone;     // degrees of look angle that do not steer
@@ -579,6 +583,23 @@ exec function VRShowCapture()
 {
 	if ( VRHUD(myHUD) != None )
 		VRHUD(myHUD).bDebugShowCapture = !VRHUD(myHUD).bDebugShowCapture;
+}
+
+// debug: the gun's rubber-band lag and the Link beam's start against the muzzle
+exec function VRBeamLog()
+{
+	local int i;
+	local LinkFire F;
+	local float D;
+	D = -1;
+	if ( Pawn != None && LinkGun(Pawn.Weapon) != None )
+		for ( i = 0; i < 2; i++ )
+		{
+			F = LinkFire(Pawn.Weapon.GetFireMode(i));
+			if ( F != None && F.Beam != None )
+				D = VSize(F.Beam.Location - GunTarget);
+		}
+	Log("UT2004VR: beam log lag "$VSize(GunLag)$" uu, beam start to muzzle "$D$" uu, speed "$VSize(Pawn.Velocity), 'UT2004VR');
 }
 
 // debug: the HUD settings on this HUD and on the game type's one beside it
@@ -1387,6 +1408,55 @@ simulated function rotator GunRot()
 	return OrthoRotation(X2, Y, Z2);
 }
 
+// keyboard/mouse: a small rubber band - when the head moves (strafing, walking, jumping, crouching) the gun first stays
+// behind, at most GunLagMax metres, and eases back over GunLagTime seconds. Turning doesn't move the head: no lag.
+simulated function vector KBMGunLag()
+{
+	local vector D;
+	local float Dt;
+
+	if ( GunLagTime <= 0 || GunLagMax <= 0 )
+		return vect(0,0,0);
+	if ( Level.TimeSeconds != GunLagAt )
+	{
+		Dt = Level.TimeSeconds - GunLagAt;
+		D = VRHeadWorld - GunLagHead;
+		GunLagAt = Level.TimeSeconds;
+		GunLagHead = VRHeadWorld;
+		// a respawn, teleport or level start: no lag
+		if ( Dt <= 0 || Dt > 0.5 || VSize(D) > 2.0 * UUPerMeter )
+			GunLag = vect(0,0,0);
+		else
+		{
+			GunLag = GunLag * Exp(-Dt / GunLagTime) - D;
+			if ( VSize(GunLag) > GunLagMax * UUPerMeter )
+				GunLag = Normal(GunLag) * GunLagMax * UUPerMeter;
+		}
+	}
+	return GunLag;
+}
+
+// the Link Gun's beam starts where UT puts it for a first-person gun (from the pawn and the aim, in its own Tick);
+// right before the eyes render it is moved onto the muzzle of the gun you see, so the two never come apart
+function GlueBeams()
+{
+	local Weapon W;
+	local int i;
+	local LinkFire F;
+
+	if ( Pawn == None || !GunActive() || !bGunCalibrated )
+		return;
+	W = Pawn.Weapon;
+	if ( LinkGun(W) == None )
+		return;
+	for ( i = 0; i < 2; i++ )
+	{
+		F = LinkFire(W.GetFireMode(i));
+		if ( F != None && F.Beam != None && !F.Beam.bDeleteMe )
+			F.Beam.SetLocation(GunTarget);
+	}
+}
+
 simulated function vector GunTip()
 {
 	local vector Loc, Dir, X, Y, Z;
@@ -1398,7 +1468,7 @@ simulated function vector GunTip()
 		// or away from the face). Level aim: the same place as before. It follows the head's position (not the
 		// pawn's), so where it sits in view doesn't depend on how you sat when the session started (before the
 		// height calibration a floor-based chest point put it above the view, upside down); head turns stay freelook.
-		Loc = VRHeadWorld;
+		Loc = VRHeadWorld + KBMGunLag();
 		GetAxes(CleanAim(Rotation), X, Y, Z);
 		return Loc + KBMGunOffset.X * X + KBMGunOffset.Y * Y + (KBMGunOffset.Z - KBMChestBelowEyes * UUPerMeter) * Z;
 	}
@@ -3015,6 +3085,12 @@ function SanitizeAim()
 // UpdateRotation); the headset only looks around on top of the mouse heading
 function KBMPlayerMove(float DeltaTime)
 {
+	// debug: VRStick strafes / walks as the keys would (aStrafe / aForward, read by PlayerWalking after this)
+	if ( Level.TimeSeconds < DebugStickUntil )
+	{
+		aStrafe = DebugStickX * 6000;
+		aForward = DebugStickY * 6000;
+	}
 	if ( !bAnchorValid )
 	{
 		Anchor = HeadPos;
@@ -4343,6 +4419,8 @@ defaultproperties
 	bKeyboardMouse=false
 	KBMGunOffset=(X=16,Y=7,Z=-6)
 	KBMChestBelowEyes=0.32
+	GunLagTime=0.12
+	GunLagMax=0.04
 	SteerGain=1.5
 	SteerDeadzone=8
 	SteerMaxDegPerSec=120

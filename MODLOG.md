@@ -1011,3 +1011,12 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   myHUD.bCrosshairShow. Debug VRHudLog. Mock: `set UT2004VR.VRHUD HudScale 0.6` + `bShowWeaponBar False` -> both
   HUDs 0.60 / False. Note for tests: the game saves HUD settings into User.ini at exit - back it up (done here).
 - Keyboard-mode gun pitch (user: "pushing/pulling the mouse rotates the gun about the Y axis; it should keep its place relative to the head, as it does when turning"): GunTip dropped KBMChestBelowEyes along the world up and then added KBMGunOffset in aim axes, so a mouse pitch swung the gun about a chest point. The drop is now along the aim's up too: the whole offset turns with the aim about the eyes; level aim gives the same place as before. Mock (VRAimPitch 0 / -30 / +30): the gun in the same place in view in all three.
+- Gun rubber band + Link beam on the muzzle (user: "a small rubber band for guns when strafing? the Link Gun beam
+  does it but the gun doesn't follow, so the beam detaches"): LinkBeamEffect.SetBeamLocation puts a first-person
+  beam at Weapon.GetEffectStart() - 60 * aim in its own Tick, from the pawn and the aim - not where the VR gun model
+  is (mock: 9.3 uu from the muzzle while strafing at 440 uu/s). VRPlayerController.GlueBeams (called by
+  VRMirrorInteraction right before the eyes render, after every Tick) sets the LinkFire beams onto GunTarget, the
+  muzzle. Keyboard mode: KBMGunLag - head movement leaves the gun behind (GunLag -= head delta, decaying with
+  GunLagTime 0.12 s, at most GunLagMax 0.04 m; reset on jumps > 2 m / pauses), added in GunTip, so the muzzle and
+  the beam follow. Controller mode: the hand, no lag. Debug: VRBeamLog; VRStick now strafes / walks in keyboard
+  mode too (aStrafe / aForward). Mock: lag 2.1 uu while strafing, 0 after; beam leaving the muzzle in the eye.

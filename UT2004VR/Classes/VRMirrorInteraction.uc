@@ -19,6 +19,7 @@ function PostRender(Canvas C)
 		PC = None;
 	if ( PC == None || PC.bDeleteMe || PC.EyeTex[0] == None || PC.EyeTex[1] == None || !PC.VRActive() )
 		return;
+	PC.GlueBeams();
 	PC.EyeTex[0].Revision++;
 	PC.EyeTex[1].Revision++;
 	// "M 0" to the proxy: the eyes render (from here, every 30 frames: this runs while the game is paused too,
