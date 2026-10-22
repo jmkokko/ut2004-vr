@@ -23,7 +23,9 @@ event InitGame( string Options, out string Error )
 	Log("UT2004VR: InitGame options="$Options$" -> InitialBots="$InitialBots$" MinPlayers="$MinPlayers$" difficulty="$GameDifficulty, 'UT2004VR');
 	TimeLimit = 0;
 	GoalScore = 0;
-	bQuickStart = true;   // nobody can "press fire to start" with a headset on
+	// offline VRMutator marks you ready (the countdown still runs); online the server starts at once
+	if ( Level.NetMode != NM_Standalone )
+		bQuickStart = true;
 }
 
 // travel-only mode (VRPlayerController bWeapons=False): no guns

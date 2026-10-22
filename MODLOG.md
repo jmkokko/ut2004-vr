@@ -1054,3 +1054,12 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   yaw. Back to the level gaze (measured only while the headset moves: the desk case stays fixed); the seated
   calibration is logged beside it. The intro keeps using the seated calibration (it often starts with the headset on
   the desk); resetting SteamVR's seated position puts it back in front. Mock: "chair forward yaw 1695 (level gaze)".
+- Match start countdown (user: "the original has a ~3 s countdown before you spawn; the match starts at once"):
+  bQuickStart (set for every DeathMatch so nobody had to "press fire to start") makes PendingMatch's Begin call
+  StartMatch, skipping both the ready wait and the countdown. Offline it is no longer set: VRMutator.Tick marks the
+  local players ready (PRI.bReadyToPlay, what fire does) while the game is in PendingMatch, so DeathMatch's Timer
+  runs its CountDown (StartupMessage 3-2-1) and starts the match. Assault's intro needs quickstart off anyway (the
+  per-level quickstart juggling is gone): intro, then the countdown, then the round. Online the server still starts
+  at once (bQuickStart). Mock: DM "match started 4.40 s after you were ready"; AS-Convoy: the ~3 min intro, then
+  ready, "match started 3.31 s", ASGameInfo::BeginRound, PlayerWalking. (Console-driven tests: MenuTestExec ending
+  in "exit" keeps the log when no pawn ever comes - TestExec waits for one.)
