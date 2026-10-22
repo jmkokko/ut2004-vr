@@ -1083,3 +1083,11 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   VRPlayerController.Fire: SceneAbort, the click used up (bSpecFireHeld, the 0.3 s guard). VRTapFire also calls
   Fire, like a real click. Mock (AS-Convoy): click -> "fire in the intro: skipping it", PlayerWaiting ~10 s, click
   -> ready, BeginRound.
+- Assault intro title and captions (user: "the original shows captions and the map's title for a couple of
+  seconds"): overlay kind 3 (the game type's HUD layer) now also runs during a Matinee intro in a game (not the
+  startup CinematicGame), and DrawShadowHud draws only HUD_Assault.DrawIntroTitle (IntroTitleFade set to the real
+  time since the intro began: it otherwise advances per draw, and the copy draws every 8th frame) and
+  HudBase.DrawIntroSubtitles (SceneSubTitles), not the whole DrawCinematicHUD: its full-screen film grain, captured
+  ~11 times a second and head-locked, would be flickering static (Level.DetailMode is const, so it can't be turned
+  off for the call). Shadow.bHideHUD follows VRHUD's (a cinematic hides the HUD). Mock (AS-Convoy): "Convoy" in the
+  layer's centre at ~4 s, fading by ~8 s; the briefing captions at the bottom through the intro.

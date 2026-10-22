@@ -15,6 +15,7 @@ var float MsgCullTime;              // Level.TimeSeconds the message queues were
 var int ScoreFrame;                 // frames an original overlay has been up (every ScoreCapturePeriod: a capture pair)
 var int OverlayKind;                // that overlay: 1 UT's scoreboard, 2 UT's spectator bar (DrawSpectatingHud), 3 the game type's HUD
 var bool bDebugShowCapture;         // debug (VRShowCapture): the window shows the capture frame (over black) all the time
+var float CineStart;                // when the Matinee intro began (the title's clock)
 var HudBase Shadow;                 // the game type's own HUD (HUD_Assault, HudCDeathMatch...), drawn only for the capture
 var float OverlayTop;               // the window share the overlay covers, from the top (0..1; the bar: its top edge)
 var int ScoreCapturePeriod;         // frames between scoreboard captures for the headset (two frames each)
@@ -157,8 +158,15 @@ simulated function MirrorFitHud(VRPlayerController PC, Canvas C, out float HX, o
 // the drawn VR HUD versions instead.
 simulated function int VROverlay(VRPlayerController PC)
 {
-	if ( PC == None || !PC.VRActive() || !PC.bVRScoreboardOriginal || PC.bMenuOpen || PC.IsCinematic() )
+	if ( PC == None || !PC.VRActive() || !PC.bVRScoreboardOriginal || PC.bMenuOpen )
 		return 0;
+	// a Matinee intro in a game (Assault's briefing): the game type's HUD draws its title and captions then
+	if ( PC.IsCinematic() )
+	{
+		if ( PC.bViewingMatineeCinematic && CinematicGame(Level.Game) == None && Shadow != None && PC.bVROriginalHud )
+			return 3;
+		return 0;
+	}
 	if ( PC.IsVRSpectating() )
 		return 2;
 	// the game type's HUD, with the scoreboard in its place while it is up (F1, or while dead), as in 2D
@@ -178,7 +186,7 @@ simulated function bool WantScores(VRPlayerController PC)
 // 3: the game type's HUD layer (alive or dead, not spectating)
 simulated function bool HudLayerUp(VRPlayerController PC)
 {
-	return Shadow != None && PC.bVROriginalHud && PC.bVRHud && !bHideHUD;
+	return Shadow != None && PC.bVROriginalHud && PC.bVRHud && (!bHideHUD || PC.bViewingMatineeCinematic);
 }
 
 // the game type's own HUD beside this one: it ticks on its own (pulses, objectives, countdown announcements), and
@@ -241,6 +249,7 @@ simulated function DisplayHit(vector HitDir, int Damage, class<DamageType> damag
 // it read them only when it was created, so they are passed on before each capture
 simulated function SyncShadow()
 {
+	Shadow.bHideHUD = bHideHUD;   // (a cinematic hides it: then only its title and captions)
 	Shadow.bShowWeaponInfo = bShowWeaponInfo;
 	Shadow.bShowPersonalInfo = bShowPersonalInfo;
 	Shadow.bShowPoints = bShowPoints;
@@ -343,7 +352,30 @@ simulated function DrawShadowHud(Canvas C)
 		CHX = WP.CrosshairX; CHY = WP.CrosshairY;
 		WP.CrosshairX = -0.5; WP.CrosshairY = -0.5;
 	}
-	Shadow.PostRender(C);
+	// a Matinee intro: only its title (Assault's, by its own clock: IntroTitleFade += Global_Delta per draw, and the
+	// copy draws every few frames, so it gets the real time since the intro began) and its captions - not the
+	// rest of the cinematic HUD, whose film grain, captured a few times a second and fixed to your head, would be
+	// flickering static
+	if ( PlayerOwner.bViewingMatineeCinematic )
+	{
+		if ( CineStart == 0 )
+			CineStart = Level.TimeSeconds;
+		C.Reset();
+		if ( AH != None )
+		{
+			AH.IntroTitleFade = Level.TimeSeconds - CineStart;
+			if ( AH.IntroTitleFade < 10 )
+				AH.DrawIntroTitle(C);
+		}
+		C.Reset();
+		if ( Shadow.SubTitles != None )
+			Shadow.DrawIntroSubtitles(C);
+	}
+	else
+	{
+		CineStart = 0;
+		Shadow.PostRender(C);
+	}
 	if ( OV != None )
 	{
 		OV.CrosshairX = CHX; OV.CrosshairY = CHY;
