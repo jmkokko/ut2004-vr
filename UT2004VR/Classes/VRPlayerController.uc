@@ -971,21 +971,19 @@ function VRPacket(string Text)
 		// worn = the head moved in the last 20 s (not the height's stricter "moving right now": sitting still at the
 		// keyboard, that took over a minute, with a fallback chair from a downward glance). Not the worn flag: WMR
 		// reports worn on the desk too, and the chair then got the desk's direction (the gun off to one side once
-		// the headset went on). The yaw comes from SteamVR's seated calibration when there is one (like the menu
-		// panel); recenter (VRRecenter) takes it from your gaze.
+		// the headset went on).
 		if ( !bChairMeasured && LastHeadMotion > 0 && Level.TimeSeconds - LastHeadMotion < 20
 			&& Abs(Normal(HeadF).Z) < 0.17 )
 		{
 			CalibFwdSum += Normal(HeadF);
 			if ( ++ChairCount >= 120 )
 			{
+				// your level gaze while wearing and moving the headset: where you face as you play (SteamVR's seated
+				// calibration was used here, but it can be ~30 deg off how you sit today, and the gun swung there)
 				ChairYaw = rotator(CalibFwdSum).Yaw;
 				Src = "level gaze";
-				if ( bSeatZero && !bChairFromGaze )
-				{
-					Src = "seated calibration; gaze yaw " $ ChairYaw;
-					ChairYaw = rotator(SeatZeroF).Yaw;
-				}
+				if ( bSeatZero )
+					Src = "level gaze; seated calibration " $ rotator(SeatZeroF).Yaw;
 				bChairFromGaze = false;
 				ChairPitch = rotator(CalibFwdSum).Pitch;
 				bChairYawValid = true;

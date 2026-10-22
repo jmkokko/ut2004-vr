@@ -1048,3 +1048,9 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   arc only while it is 300 (TrackingResult_Fallback_RotationOnly), blended over NeckBlendTime 0.3 s
   (NeckModelMode: 2 auto, 1 always, 0 never). The heuristic is gone. Mock: off -> eyes as reported, gun anchor
   without the arc; VRNeck 1 -> eyes on the arc, gun anchor fixed.
+- Gun swung ~30 deg left a second into a match; the intro also off to the left (user report, 2026-10-22). Log:
+  "chair forward yaw -790 (seated calibration; gaze yaw 4567)" - SteamVR's seated calibration was ~29 deg off how
+  the user sat that day (another session: gaze -4362 vs -790, the other way), and 1bd9177 had made it the chair's
+  yaw. Back to the level gaze (measured only while the headset moves: the desk case stays fixed); the seated
+  calibration is logged beside it. The intro keeps using the seated calibration (it often starts with the headset on
+  the desk); resetting SteamVR's seated position puts it back in front. Mock: "chair forward yaw 1695 (level gaze)".
