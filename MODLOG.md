@@ -1063,3 +1063,8 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   at once (bQuickStart). Mock: DM "match started 4.40 s after you were ready"; AS-Convoy: the ~3 min intro, then
   ready, "match started 3.31 s", ASGameInfo::BeginRound, PlayerWalking. (Console-driven tests: MenuTestExec ending
   in "exit" keeps the log when no pawn ever comes - TestExec waits for one.)
+- Main-menu panel off to the left and low after clicking past the intro (user, "more than once"). Proxy log: the
+  menu opened with the head at 0.93 m - the headset still being lifted (counted "worn": it was moving) - so the
+  panel went at that position, facing the seated calibration, and stayed when the headset reached the head. Now in
+  the main menus the panel is placed again when the head is 30 cm from where it was at placement (g_panelHead):
+  putting the headset on, standing up. Mock (seated head, 20 cm rise): placed once, as before.

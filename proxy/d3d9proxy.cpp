@@ -575,6 +575,7 @@ static bool g_placingScore = false;
 static int g_sbKind = 0;      // 1 UT's scoreboard, 2 UT's spectator bar
 static float g_sbTop = 0;     // the window share it covers, from the top (0..1): the panel shows only that strip
 static float g_hlDist = 2.5f, g_hlHalfW = 1.18f, g_hlUp = -0.2f;   // kind 3, the game type's HUD: head-locked, metres   // PlacePanel for the scoreboard (its own distance)
+static float g_panelHead[3] = {};   // the head's position when the panel was placed
 static bool g_panelSeated = false, g_panelSeatedWorn = false;   // placed facing the calibration; the headset was worn then   // the next placement follows the headset (you looked away from the panel)
 
 // the panel in front of a pose: the headset's, or (bSeated) the seated calibration - the main menus at startup
@@ -601,6 +602,7 @@ static void PlacePanel(bool bSeated = false)
 	g_pRad = g_curve > 0.01f ? dist / g_curve : 0;
 	for (int k = 0; k < 3; k++) g_pO[k] = g_pC[k] + g_pN[k] * g_pRad;   // N faces the viewer: the axis is behind you... at the head for curvature 1
 	g_panelPlaced = true;
+	for (int k = 0; k < 3; k++) g_panelHead[k] = g_renderPose.m[k][3];
 	Log("panel placed at %.2f %.2f %.2f, curve radius %.2f", g_pC[0], g_pC[1], g_pC[2], g_pRad);
 }
 
@@ -1237,6 +1239,17 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 		}
 		// placed while the headset lay on the desk: once you put it on, again in front of your head
 		if (g_panelPlaced && g_panelSeated && !g_panelSeatedWorn && g_worn) g_panelPlaced = false;
+		// the main menus: the head moved 30 cm from where it was when the panel was placed (it was placed while you
+		// lifted the headset to your head - "worn" then, it was moving - or you stood up): again in front of you
+		if (g_panelPlaced && standalone && g_worn && !g_screenMode)
+		{
+			float dx = g_renderPose.m[0][3] - g_panelHead[0], dy = g_renderPose.m[1][3] - g_panelHead[1], dz = g_renderPose.m[2][3] - g_panelHead[2];
+			if (dx * dx + dy * dy + dz * dz > 0.3f * 0.3f)
+			{
+				Log("head moved %.2f m since the panel was placed: placing it again", sqrtf(dx * dx + dy * dy + dz * dz));
+				g_panelPlaced = false;
+			}
+		}
 		if (!g_panelPlaced) PlacePanel(standalone && !g_panelRecentred);
 		g_panelRecentred = false;
 		// in a game the menu is on black (VRHUD): key it out; so is a dialog drawn alone; the main menus' own
