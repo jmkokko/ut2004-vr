@@ -23,7 +23,7 @@ event InitGame( string Options, out string Error )
 	Log("UT2004VR: InitGame options="$Options$" -> InitialBots="$InitialBots$" MinPlayers="$MinPlayers$" difficulty="$GameDifficulty, 'UT2004VR');
 	TimeLimit = 0;
 	GoalScore = 0;
-	// offline VRMutator marks you ready (the countdown still runs); online the server starts at once
+	// offline: "Press FIRE to start!" and the countdown, as in the original; online the server starts at once
 	if ( Level.NetMode != NM_Standalone )
 		bQuickStart = true;
 }
@@ -71,13 +71,6 @@ function StartMatch()
 	Log("UT2004VR: StartMatch InitialBots="$InitialBots$" NumBots="$NumBots, 'UT2004VR');
 	Super.StartMatch();
 	Log("UT2004VR: after StartMatch NumBots="$NumBots$" RemainingBots="$RemainingBots, 'UT2004VR');
-}
-
-event PostLogin( PlayerController NewPlayer )
-{
-	Super.PostLogin(NewPlayer);
-	if ( NewPlayer.PlayerReplicationInfo != None )
-		NewPlayer.PlayerReplicationInfo.bReadyToPlay = true;
 }
 
 defaultproperties

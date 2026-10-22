@@ -6,7 +6,6 @@
 class VRMutator extends Mutator;
 
 var int BotNameIndex;
-var float ReadyAt;               // when the local player was marked ready (logged when the match starts)
 var array<Controller> Named;     // bots that already got their name
 
 function PostBeginPlay()
@@ -15,41 +14,11 @@ function PostBeginPlay()
 	// before anyone logs in: GameInfo.Login spawns PlayerControllerClass
 	Level.Game.PlayerControllerClass = class'VRPlayerController';
 	Level.Game.PlayerControllerClassName = "UT2004VR.VRPlayerController";
-	// nobody can "press fire to start" with a headset on: offline you are marked ready (Tick), so UT still plays its
-	// 3-2-1 countdown (and Assault its intro, which needs quickstart off); online the server starts at once
+	// offline as in the original: "Press FIRE to start!", then UT's 3-2-1 countdown (and Assault's intro, which needs
+	// quickstart off); online the server starts at once
 	if ( DeathMatch(Level.Game) != None && Level.NetMode != NM_Standalone )
 		DeathMatch(Level.Game).bQuickStart = true;
 	Log("UT2004VR: VR mutator in "$Level.Game.Class, 'UT2004VR');
-}
-
-// offline, while the match waits for players to be ready: you are (as if you had pressed fire), so the countdown runs
-function Tick(float DeltaTime)
-{
-	local Controller C;
-	local PlayerController PC;
-
-	if ( Level.NetMode != NM_Standalone )
-		return;
-	if ( !Level.Game.IsInState('PendingMatch') )
-	{
-		if ( ReadyAt > 0 )
-		{
-			Log("UT2004VR: match started "$(Level.TimeSeconds - ReadyAt)$" s after you were ready", 'UT2004VR');
-			ReadyAt = 0;
-		}
-		return;
-	}
-	for ( C = Level.ControllerList; C != None; C = C.NextController )
-	{
-		PC = PlayerController(C);
-		if ( PC != None && PC.PlayerReplicationInfo != None && PC.PlayerReplicationInfo.bWaitingPlayer
-			&& !PC.PlayerReplicationInfo.bReadyToPlay && !PC.PlayerReplicationInfo.bOnlySpectator )
-		{
-			PC.PlayerReplicationInfo.bReadyToPlay = true;
-			ReadyAt = Level.TimeSeconds;
-			Log("UT2004VR: "$PC.PlayerReplicationInfo.PlayerName$" ready: the match countdown runs", 'UT2004VR');
-		}
-	}
 }
 
 function ModifyPlayer(Pawn Other)

@@ -1068,3 +1068,10 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   panel went at that position, facing the seated calibration, and stayed when the headset reached the head. Now in
   the main menus the panel is placed again when the head is 30 cm from where it was at placement (g_panelHead):
   putting the headset on, standing up. Mock (seated head, 20 cm rise): placed once, as before.
+- "Press FIRE to start!" (user: "the countdown shouldn't start at once; the original first says Press FIRE to start,
+  and counts down after fire"): removed 6524f59's auto-ready, VRGame.PostLogin's bReadyToPlay and the old free-view
+  auto-join (it pressed fire after 1.5 s of PlayerWaiting, from when the message wasn't visible in the headset; it
+  now is, in the HUD layer). Fire in PlayerWaiting does UT's PlayerWaiting.Fire (ServerReStartPlayer -> ready): the
+  global exec wins over the state one, so it's handled in VRPlayerController.Fire and, like spectating, from the
+  buttons (SpectatorButtons: click, or the trigger in controller mode). Mock: waiting ~10 s with UT's message and
+  the "Press [Fire] to join the match!" bar in the layer, VRTapFire -> ready, countdown, START MATCH, walking.

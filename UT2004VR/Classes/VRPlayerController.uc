@@ -220,7 +220,6 @@ var float NextCrossLog;
 var Vehicle LastVehicle;             // in a vehicle: the head when you got in, and the reference heading
 var vector VehAnchor;
 var int   VehRefYaw;
-var float WaitingSince, NextAutoJoin;
 var int LastLoggedPitch;
 var bool bVRGoNear;
 var float PitchLogUntil;
@@ -324,7 +323,7 @@ event PlayerTick(float DeltaTime)
 		TapFireUntil = 0;
 		bFire = 0;
 	}
-	if ( IsInState('Spectating') )
+	if ( IsInState('Spectating') || IsInState('PlayerWaiting') )
 		SpectatorButtons();
 
 	// UT advances zoom in AdjustView, called from Pawn.UpdateEyeHeight on its own movement path; VR movement skips
@@ -413,20 +412,7 @@ event PlayerTick(float DeltaTime)
 			}
 		}
 		bOldFire = bBtnFire;
-		// waiting to join ("press fire to start") isn't visible in the headset: join by yourself
-		if ( IsInState('PlayerWaiting') && PlayerReplicationInfo != None && !PlayerReplicationInfo.bOnlySpectator )
-		{
-			if ( WaitingSince == 0 )
-				WaitingSince = Level.TimeSeconds;
-			else if ( Level.TimeSeconds - WaitingSince > 1.5 && Level.TimeSeconds > NextAutoJoin )
-			{
-				NextAutoJoin = Level.TimeSeconds + 2.0;
-				Log("UT2004VR: waiting to join, pressing fire", 'UT2004VR');
-				Fire(0);
-			}
-		}
-		else
-			WaitingSince = 0;
+		// waiting to join: UT's "Press FIRE to start!" is in the HUD layer now; you press fire, as in the original
 	}
 	if ( VRActive() )
 	{
@@ -2797,6 +2783,14 @@ function SpectatorFire()
 	if ( Level.TimeSeconds - SpecSwitchTime < 0.3 && Level.TimeSeconds >= SpecSwitchTime )
 		return;   // the exec and the button both saw the same click
 	SpecSwitchTime = Level.TimeSeconds;
+	// waiting for the match ("Press FIRE to start!"): ready (UT's PlayerWaiting.Fire)
+	if ( IsInState('PlayerWaiting') )
+	{
+		if ( Level.TimeSeconds > 0.2 )
+			ServerReStartPlayer();
+		Log("UT2004VR: fire while waiting: ready "$(PlayerReplicationInfo != None && PlayerReplicationInfo.bReadyToPlay), 'UT2004VR');
+		return;
+	}
 	if ( bFrozen )
 	{
 		if ( TimerRate <= 0.0 || TimerRate > 1.0 )
@@ -2809,6 +2803,11 @@ function SpectatorFire()
 
 function SpectatorAltFire()
 {
+	if ( IsInState('PlayerWaiting') )
+	{
+		SpectatorFire();
+		return;
+	}
 	if ( Level.TimeSeconds - SpecSwitchTime < 0.3 && Level.TimeSeconds >= SpecSwitchTime )
 		return;
 	SpecSwitchTime = Level.TimeSeconds;
@@ -2840,6 +2839,12 @@ exec function Fire(optional float F)
 		SpectatorFire();
 		return;
 	}
+	// "Press FIRE to start!": what UT's PlayerWaiting.Fire does (this global version wins over it)
+	if ( IsInState('PlayerWaiting') )
+	{
+		SpectatorFire();
+		return;
+	}
 	Super.Fire(F);
 }
 
@@ -2853,6 +2858,11 @@ exec function AltFire(optional float F)
 	if ( IsInState('Spectating') )
 	{
 		SpectatorAltFire();
+		return;
+	}
+	if ( IsInState('PlayerWaiting') )
+	{
+		Fire(F);
 		return;
 	}
 	Super.AltFire(F);
