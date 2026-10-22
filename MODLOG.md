@@ -1075,3 +1075,11 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   global exec wins over the state one, so it's handled in VRPlayerController.Fire and, like spectating, from the
   buttons (SpectatorButtons: click, or the trigger in controller mode). Mock: waiting ~10 s with UT's message and
   the "Press [Fire] to join the match!" bar in the layer, VRTapFire -> ready, countdown, START MATCH, walking.
+- Assault intro skip (user: "fire during the intro starts the countdown; the original then waits for fire"): the
+  PC is stateless during the intro, so the click reached UT's global Fire (SceneAbort), Assault's
+  SPIntroCinematic.EndState put it in PlayerWaiting at once, and the button watching (later the same tick; it only
+  ran in Spectating / PlayerWaiting, so it hadn't seen the button held) took it as a new press: ready. Now the
+  buttons are followed in every state (acting only in those two), and a fire during a Matinee intro is handled in
+  VRPlayerController.Fire: SceneAbort, the click used up (bSpecFireHeld, the 0.3 s guard). VRTapFire also calls
+  Fire, like a real click. Mock (AS-Convoy): click -> "fire in the intro: skipping it", PlayerWaiting ~10 s, click
+  -> ready, BeginRound.

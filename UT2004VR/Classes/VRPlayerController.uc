@@ -323,8 +323,7 @@ event PlayerTick(float DeltaTime)
 		TapFireUntil = 0;
 		bFire = 0;
 	}
-	if ( IsInState('Spectating') || IsInState('PlayerWaiting') )
-		SpectatorButtons();
+	SpectatorButtons();
 
 	// UT advances zoom in AdjustView, called from Pawn.UpdateEyeHeight on its own movement path; VR movement skips
 	// that, so run it here when it didn't run last frame
@@ -2770,10 +2769,15 @@ function SpectatorButtons()
 	local bool bF, bA;
 	bF = bFire != 0 || (!bKeyboardMouse && bBtnFire);
 	bA = bAltFire != 0 || (!bKeyboardMouse && bBtnAlt);
-	if ( bF && !bSpecFireHeld )
-		SpectatorFire();
-	if ( bA && !bSpecAltHeld )
-		SpectatorAltFire();
+	// the buttons are followed in every state, but only act while spectating or waiting: a click that skipped
+	// Assault's intro (which then puts you in PlayerWaiting) was still held and counted as a new press there
+	if ( IsInState('Spectating') || IsInState('PlayerWaiting') )
+	{
+		if ( bF && !bSpecFireHeld )
+			SpectatorFire();
+		if ( bA && !bSpecAltHeld )
+			SpectatorAltFire();
+	}
 	bSpecFireHeld = bF;
 	bSpecAltHeld = bA;
 }
@@ -2783,6 +2787,13 @@ function SpectatorFire()
 	if ( Level.TimeSeconds - SpecSwitchTime < 0.3 && Level.TimeSeconds >= SpecSwitchTime )
 		return;   // the exec and the button both saw the same click
 	SpecSwitchTime = Level.TimeSeconds;
+	// a Matinee intro (the trigger in controller mode comes this way): fire only ends it, as above
+	if ( bViewingMatineeCinematic && Level.NetMode == NM_Standalone )
+	{
+		Log("UT2004VR: fire in the intro: skipping it", 'UT2004VR');
+		Level.Game.SceneAbort();
+		return;
+	}
 	// waiting for the match ("Press FIRE to start!"): ready (UT's PlayerWaiting.Fire)
 	if ( IsInState('PlayerWaiting') )
 	{
@@ -2821,6 +2832,7 @@ exec function VRTapFire()
 {
 	bFire = 1;
 	TapFireUntil = Level.TimeSeconds + 0.2;
+	Fire(0);   // a click is both: the alias "Button bFire | Fire"
 }
 
 // (these global versions win over PlayerController's state Spectating ones, so spectating is handled here too:
@@ -2832,6 +2844,17 @@ exec function Fire(optional float F)
 	if ( IsCinematic() && CinematicGame(Level.Game) != None )
 	{
 		SkipCinematic();
+		return;
+	}
+	// a Matinee intro (Assault's briefing): the click only ends it, as UT's Fire does. Assault then puts you in
+	// PlayerWaiting in the same moment, and the button watching (later this tick) would take the held button as
+	// a new press there and make you ready: the click is used up
+	if ( bViewingMatineeCinematic && Level.NetMode == NM_Standalone )
+	{
+		Log("UT2004VR: fire in the intro: skipping it", 'UT2004VR');
+		SpecSwitchTime = Level.TimeSeconds;
+		bSpecFireHeld = true;
+		Level.Game.SceneAbort();
 		return;
 	}
 	if ( IsInState('Spectating') )
