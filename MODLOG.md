@@ -1040,3 +1040,11 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   VRBodyWorld (its world point) anchors the keyboard-mode gun: turning the head no longer moves the gun. Debug:
   VRNeck [1]. Mock (forced on, head sweeping +-20 deg): eyes world Y -804.3 .. -801.1 (a 6 cm arc), gun anchor fixed.
   The detection itself isn't covered by mock (its head turns ~10 deg/s).
+- Neck model, take 2 (user: "it feels like the neck model is on sometimes and sometimes not"): their next log had
+  no "neck model on" at all, and its head positions moved tens of cm with the turns - real 6DoF tracking that
+  session, unlike 2026-10-18's frozen position. So the headset itself switches: WMR falls back to rotation only when
+  its cameras lose their fix (and the movement heuristic restarted per level). Now the proxy sends the HMD pose's
+  eTrackingResult as field 12 of "H" (logged on change: "HMD tracking 6DoF / rotation only"), and NeckModel adds the
+  arc only while it is 300 (TrackingResult_Fallback_RotationOnly), blended over NeckBlendTime 0.3 s
+  (NeckModelMode: 2 auto, 1 always, 0 never). The heuristic is gone. Mock: off -> eyes as reported, gun anchor
+  without the arc; VRNeck 1 -> eyes on the arc, gun anchor fixed.

@@ -25,14 +25,13 @@ var config float GunLagTime;        // keyboard/mouse: the gun eases back to its
 var config float GunLagMax;         // ... lagging at most this far (m); 0 = off
 var vector GunLag, GunLagRaw, GunLagHead;
 var config float GunLagSmooth;      // ... easing in and out over this many seconds
-var config bool  bAutoNeckModel;    // add the eyes' arc when the headset's position doesn't follow head turns (detected)
+var config int   NeckModelMode;     // the eyes' turning arc: 2 while the headset tracks rotation only, 1 always, 0 never
 var config float NeckForward, NeckUp; // the eyes from the neck pivot (m)
+var config float NeckBlendTime;     // ... blended in / out over this many seconds
 var bool   bNeckModel;
+var float  NeckBlend, NeckBlendAt;
 var vector BodyHeadPos;              // the head position without the turning arc (playspace m): the keyboard gun's anchor
 var vector VRBodyWorld;              // ... in the world
-var vector NeckRefPos, NeckRefF;
-var float  NeckRefTime;
-var int    NeckFlatTurns;
 var vector GunTargetPawnLoc;
 var float LagTraceUntil;            // debug: VRLagTrace
 var float BeamGap;                  // debug: VRBeamLog        // Pawn.Location when GunTarget (the muzzle) was placed
@@ -616,7 +615,7 @@ function MeasureBeamGap()
 exec function VRNeck(optional int bOn)
 {
 	if ( bOn != 0 )
-		bNeckModel = true;
+		NeckModelMode = 1;
 	Log("UT2004VR: neck "$bNeckModel$" head yaw "$rotator(HeadF).Yaw$" eyes "$HeadPos$" body "$BodyHeadPos$" gun anchor world "$VRBodyWorld$" eyes world "$VRHeadWorld, 'UT2004VR');
 }
 
@@ -1017,7 +1016,10 @@ function VRPacket(string Text)
 		HeadPos.Z += HeightOffset;
 		HeadF = V3(P, 5);
 		HeadU = V3(P, 8);
-		NeckModel();
+		if ( n > 12 )
+			NeckModel(int(P[12]));
+		else
+			NeckModel(200);
 		LastPacketTime = Level.TimeSeconds;
 		break;
 	case "L":
@@ -2573,19 +2575,18 @@ function VRTurn(float DeltaTime)
 		bTurnLatched = false;
 }
 
-// The eyes sit in front of and above the neck, so turning the head swings them in an arc. Some headsets report a
-// position that doesn't (it stays put when you turn: seen here on the user's WMR/Oasis headset, 50 deg turns with the
-// position unchanged to the cm), and the world then doesn't shift as you turn your head. If big turns keep coming
-// with almost no movement, the arc is added (NeckForward / NeckUp, from a neck pivot; zero looking straight along
-// the chair's forward, so the calibration stays). BodyHeadPos is the head without the arc either way: the
-// keyboard-mode gun sits on it, so turning your head doesn't move the gun (it stays put in the room).
-function NeckModel()
+// The eyes sit in front of and above the neck, so turning the head swings them in an arc, which a tracked headset
+// position includes. When the headset loses its position (WMR: the cameras lose their fix, SteamVR reports
+// "rotation only", field 12 of the head packet) the position freezes and the world stops shifting as you turn your
+// head: then the arc is added (NeckForward / NeckUp, from a neck pivot; zero looking along the chair's forward, so
+// the calibration holds), blended in and out over NeckBlendTime. BodyHeadPos is the head without the arc either
+// way: the keyboard-mode gun sits on it, so turning your head doesn't move the gun.
+function NeckModel(int Track)
 {
-	local vector Arc, ChairF, Up, D;
+	local vector Arc, ChairF, Up;
 	local rotator R;
-	local float DYaw, DPos;
+	local float Want, Dt;
 
-	// the arc a turn of the head gives, from looking along the chair's forward
 	if ( bChairYawValid )
 	{
 		R.Yaw = ChairYaw;
@@ -2593,39 +2594,26 @@ function NeckModel()
 		Up.Z = 1;
 		Arc = Normal(HeadF) * NeckForward + Normal(HeadU) * NeckUp - ChairF * NeckForward - Up * NeckUp;
 	}
-
-	// detection: turns of more than 25 deg within a second that move the position less than 1 cm
-	if ( bAutoNeckModel && !bNeckModel && Level.TimeSeconds - NeckRefTime > 1.0 )
+	// 300 = TrackingResult_Fallback_RotationOnly; NeckModel=1 always, 0 never (2 = when the headset says so)
+	Want = 0;
+	if ( NeckModelMode == 1 || (NeckModelMode == 2 && Track == 300) )
+		Want = 1;
+	if ( (Want > 0) != bNeckModel )
 	{
-		if ( NeckRefTime > 0 )
-		{
-			R = rotator(HeadF);
-			DYaw = Abs(float(((R.Yaw - rotator(NeckRefF).Yaw + 32768) & 65535) - 32768)) * 360.0 / 65536.0;
-			D = HeadPos - NeckRefPos;
-			D.Z = 0;
-			DPos = VSize(D);
-			if ( DYaw > 25 && DPos < 0.01 )
-				NeckFlatTurns++;
-			else if ( DYaw > 25 && DPos > 0.03 )
-				NeckFlatTurns = 0;
-			if ( NeckFlatTurns >= 3 )
-			{
-				bNeckModel = true;
-				Log("UT2004VR: the headset's position doesn't follow head turns: neck model on (eyes "$NeckForward$" m ahead, "$NeckUp$" m above the neck)", 'UT2004VR');
-			}
-		}
-		NeckRefTime = Level.TimeSeconds;
-		NeckRefPos = HeadPos;
-		NeckRefF = HeadF;
+		bNeckModel = Want > 0;
+		Log("UT2004VR: neck model "$Mid("offon", 3 * int(bNeckModel), 3)$" (headset tracking "$Track$")", 'UT2004VR');
 	}
-
-	if ( bNeckModel )
-	{
-		BodyHeadPos = HeadPos;
-		HeadPos += Arc;
-	}
+	Dt = Level.TimeSeconds - NeckBlendAt;
+	NeckBlendAt = Level.TimeSeconds;
+	if ( Dt < 0 || Dt > 0.5 || NeckBlendTime <= 0 )
+		NeckBlend = Want;
+	else if ( NeckBlend < Want )
+		NeckBlend = FMin(Want, NeckBlend + Dt / NeckBlendTime);
 	else
-		BodyHeadPos = HeadPos - Arc;
+		NeckBlend = FMax(Want, NeckBlend - Dt / NeckBlendTime);
+
+	BodyHeadPos = HeadPos - Arc * (1 - NeckBlend);
+	HeadPos += Arc * NeckBlend;
 }
 
 // room-scale: move the pawn after the head, with collision; whatever is blocked stays as a head offset
@@ -4522,7 +4510,8 @@ defaultproperties
 	GunLagTime=0.12
 	GunLagMax=0.015
 	GunLagSmooth=0.15
-	bAutoNeckModel=true
+	NeckModelMode=2
+	NeckBlendTime=0.3
 	NeckForward=0.09
 	NeckUp=0.10
 	SteerGain=1.5

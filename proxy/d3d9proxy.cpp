@@ -1596,7 +1596,11 @@ static void AfterPresent(UINT bbW, UINT bbH)
 		if (!sawWorn && g_frames > 270) worn = 1;   // driver without a proximity sensor: assume worn after ~3 s
 		static int lastAct = -1;
 		if ((int)act != lastAct) { Log("HMD activity level %d (worn=%d), head height %.2f m", (int)act, worn, p.z); lastAct = (int)act; }
-		Send("H %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %d", (int)++g_seq, p.x, p.y, p.z, f.x, f.y, f.z, u.x, u.y, u.z, worn);
+		// the tracking state (200 running, 300 rotation only: WMR loses its cameras' fix and the position freezes)
+		static int lastTrack = -1;
+		int track = (int)hp.eTrackingResult;
+		if (track != lastTrack) { Log("HMD tracking %s (%d) t=%.0f", track == vr::TrackingResult_Running_OK ? "6DoF" : track == vr::TrackingResult_Fallback_RotationOnly ? "rotation only" : "other", track, Now()); lastTrack = track; }
+		Send("H %d %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %.4f %d %d", (int)++g_seq, p.x, p.y, p.z, f.x, f.y, f.z, u.x, u.y, u.z, worn, track);
 		// on the head it always moves a little; on the desk it is perfectly still (WMR reports "worn" there too)
 		static V3 mp = {}, mf = {};
 		static double movedAt = 0, refAt = 0;
