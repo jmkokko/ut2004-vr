@@ -25,6 +25,14 @@ var config float GunLagTime;        // keyboard/mouse: the gun eases back to its
 var config float GunLagMax;         // ... lagging at most this far (m); 0 = off
 var vector GunLag, GunLagRaw, GunLagHead;
 var config float GunLagSmooth;      // ... easing in and out over this many seconds
+var config bool  bAutoNeckModel;    // add the eyes' arc when the headset's position doesn't follow head turns (detected)
+var config float NeckForward, NeckUp; // the eyes from the neck pivot (m)
+var bool   bNeckModel;
+var vector BodyHeadPos;              // the head position without the turning arc (playspace m): the keyboard gun's anchor
+var vector VRBodyWorld;              // ... in the world
+var vector NeckRefPos, NeckRefF;
+var float  NeckRefTime;
+var int    NeckFlatTurns;
 var vector GunTargetPawnLoc;
 var float LagTraceUntil;            // debug: VRLagTrace
 var float BeamGap;                  // debug: VRBeamLog        // Pawn.Location when GunTarget (the muzzle) was placed
@@ -604,6 +612,14 @@ function MeasureBeamGap()
 	}
 }
 
+// debug: the neck model (VRNeck 1 forces it on) and the eye position against the gun's anchor
+exec function VRNeck(optional int bOn)
+{
+	if ( bOn != 0 )
+		bNeckModel = true;
+	Log("UT2004VR: neck "$bNeckModel$" head yaw "$rotator(HeadF).Yaw$" eyes "$HeadPos$" body "$BodyHeadPos$" gun anchor world "$VRBodyWorld$" eyes world "$VRHeadWorld, 'UT2004VR');
+}
+
 // debug: strafe and log the gun lag every frame for 0.6 s
 exec function VRLagTrace()
 {
@@ -1001,6 +1017,7 @@ function VRPacket(string Text)
 		HeadPos.Z += HeightOffset;
 		HeadF = V3(P, 5);
 		HeadU = V3(P, 8);
+		NeckModel();
 		LastPacketTime = Level.TimeSeconds;
 		break;
 	case "L":
@@ -1354,6 +1371,9 @@ simulated function UpdateHeadWorld()
 	Ofs = HeadPos - Anchor;
 	Ofs.Z = HeadPos.Z;
 	VRHeadWorld = BaseXY() + PlayToWorld(Ofs);
+	Ofs = BodyHeadPos - Anchor;
+	Ofs.Z = BodyHeadPos.Z;
+	VRBodyWorld = BaseXY() + PlayToWorld(Ofs);
 	F = PlayDir(HeadF);
 	U = PlayDir(HeadU);
 	MousePitchView(F, U);
@@ -1483,7 +1503,10 @@ simulated function vector GunTip()
 		// or away from the face). Level aim: the same place as before. It follows the head's position (not the
 		// pawn's), so where it sits in view doesn't depend on how you sat when the session started (before the
 		// height calibration a floor-based chest point put it above the view, upside down); head turns stay freelook.
-		Loc = VRHeadWorld + KBMGunLag();
+		// on the head without its turning arc: turning your head doesn't move the gun (moving and leaning do)
+		Loc = VRBodyWorld + KBMGunLag();
+		if ( VSize(BodyHeadPos) == 0 )
+			Loc = VRHeadWorld + KBMGunLag();
 		GetAxes(CleanAim(Rotation), X, Y, Z);
 		return Loc + KBMGunOffset.X * X + KBMGunOffset.Y * Y + (KBMGunOffset.Z - KBMChestBelowEyes * UUPerMeter) * Z;
 	}
@@ -2548,6 +2571,61 @@ function VRTurn(float DeltaTime)
 	}
 	else if ( Abs(StickTX) < 0.3 )
 		bTurnLatched = false;
+}
+
+// The eyes sit in front of and above the neck, so turning the head swings them in an arc. Some headsets report a
+// position that doesn't (it stays put when you turn: seen here on the user's WMR/Oasis headset, 50 deg turns with the
+// position unchanged to the cm), and the world then doesn't shift as you turn your head. If big turns keep coming
+// with almost no movement, the arc is added (NeckForward / NeckUp, from a neck pivot; zero looking straight along
+// the chair's forward, so the calibration stays). BodyHeadPos is the head without the arc either way: the
+// keyboard-mode gun sits on it, so turning your head doesn't move the gun (it stays put in the room).
+function NeckModel()
+{
+	local vector Arc, ChairF, Up, D;
+	local rotator R;
+	local float DYaw, DPos;
+
+	// the arc a turn of the head gives, from looking along the chair's forward
+	if ( bChairYawValid )
+	{
+		R.Yaw = ChairYaw;
+		ChairF = vector(R);
+		Up.Z = 1;
+		Arc = Normal(HeadF) * NeckForward + Normal(HeadU) * NeckUp - ChairF * NeckForward - Up * NeckUp;
+	}
+
+	// detection: turns of more than 25 deg within a second that move the position less than 1 cm
+	if ( bAutoNeckModel && !bNeckModel && Level.TimeSeconds - NeckRefTime > 1.0 )
+	{
+		if ( NeckRefTime > 0 )
+		{
+			R = rotator(HeadF);
+			DYaw = Abs(float(((R.Yaw - rotator(NeckRefF).Yaw + 32768) & 65535) - 32768)) * 360.0 / 65536.0;
+			D = HeadPos - NeckRefPos;
+			D.Z = 0;
+			DPos = VSize(D);
+			if ( DYaw > 25 && DPos < 0.01 )
+				NeckFlatTurns++;
+			else if ( DYaw > 25 && DPos > 0.03 )
+				NeckFlatTurns = 0;
+			if ( NeckFlatTurns >= 3 )
+			{
+				bNeckModel = true;
+				Log("UT2004VR: the headset's position doesn't follow head turns: neck model on (eyes "$NeckForward$" m ahead, "$NeckUp$" m above the neck)", 'UT2004VR');
+			}
+		}
+		NeckRefTime = Level.TimeSeconds;
+		NeckRefPos = HeadPos;
+		NeckRefF = HeadF;
+	}
+
+	if ( bNeckModel )
+	{
+		BodyHeadPos = HeadPos;
+		HeadPos += Arc;
+	}
+	else
+		BodyHeadPos = HeadPos - Arc;
 }
 
 // room-scale: move the pawn after the head, with collision; whatever is blocked stays as a head offset
@@ -4444,6 +4522,9 @@ defaultproperties
 	GunLagTime=0.12
 	GunLagMax=0.015
 	GunLagSmooth=0.15
+	bAutoNeckModel=true
+	NeckForward=0.09
+	NeckUp=0.10
 	SteerGain=1.5
 	SteerDeadzone=8
 	SteerMaxDegPerSec=120

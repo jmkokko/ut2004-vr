@@ -1028,3 +1028,15 @@ B. **UT2004 maps inside Half-Life: Alyx.** A converter turns the user's own UT20
   0.04 -> 0.015 m (4 cm was reached in two frames at strafe speed: a jump). Mock (strafing both ways at 440 uu/s,
   measured at render time after the gun is placed for the eyes): beam start to muzzle 0.00 uu, lag 0.79 uu.
 - Gun lag onset (user: "a bit smoother and slower at the start of strafing"): the raw lag reaches its cap in the first frames at strafe speed; the shown lag now eases toward it (GunLagSmooth 0.15 s, first-order), so it ramps in and out. Mock trace (VRLagTrace): shown 0.18 / 0.35 / 0.47 / 0.56 uu at 0.05 / 0.10 / 0.15 / 0.20 s, 0.75 at 0.5 s (cap 0.79).
+- Head turns and the gun (user, keyboard mode: "looking straight down and turning my head, the gun moves left/right
+  against the floor; and turning my head in an arc, the floor stays in the same spot, as if the head weren't tracked
+  spatially"). The user's 2026-10-18 log: head position 0.10,-0.27,1.56 in every sample while the yaw went 49111 ->
+  58086 (~50 deg); their headset's eye-to-head transforms are +-3.2 cm sideways only. So the reported position
+  doesn't swing with turns (no arc), and the gun, placed from the eye point, moved against the world. Now:
+  NeckModel() (on every head packet) computes the turning arc (eyes NeckForward 0.09 m ahead and NeckUp 0.10 m above
+  a neck pivot, relative to looking along the chair's forward); bAutoNeckModel detects a headset whose position
+  doesn't follow turns (3 one-second windows with > 25 deg of yaw and < 1 cm of movement; a 6DoF arc of > 3 cm
+  resets it) and then adds the arc to HeadPos (logged once). BodyHeadPos is the head without the arc either way, and
+  VRBodyWorld (its world point) anchors the keyboard-mode gun: turning the head no longer moves the gun. Debug:
+  VRNeck [1]. Mock (forced on, head sweeping +-20 deg): eyes world Y -804.3 .. -801.1 (a 6 cm arc), gun anchor fixed.
+  The detection itself isn't covered by mock (its head turns ~10 deg/s).
