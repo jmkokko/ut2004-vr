@@ -98,6 +98,7 @@ static bool g_mockGun = false;
 static bool g_mockSeated = false;
 static bool g_mockHeading = false;
 static bool g_mockJump = false;
+static bool g_mockBehind = false;    // MockDemo=a: the main menus' panel placed while the headset lay on the desk; 2 s later it is on, facing 120 deg to one side
 static bool g_mockLookAway = false;  // MockDemo=9: worn, head straight (the menu comes up), then 40 deg, then 55 deg to one side
 static bool g_mockCrouch = false;  // MockDemo=8: accidental vs deliberate crouch click, then jump out of crouch    // MockDemo=7: jump, then jump again at the apex (double jump) // MockDemo=6: look 60 deg right, then walk forward, then dodge L/R  // MockDemo=5: still, seated head that rises 20 cm     // MockDemo=4: still head, hand aiming forward, scripted fire // MockDemo=3: like 2, head pitched 20 and rolled 15  // MockDemo=2: head still, headset-sized window (projection calibration)   // MockDemo=1: scripted stick input in mock mode
 
@@ -117,7 +118,7 @@ static void ReadConfig()
 	if (GetPrivateProfileStringA("VR", "MirrorFill", "", buf, sizeof buf, ini.c_str())) g_mirrorFill = buf[0] != '0';
 	if (GetPrivateProfileStringA("VR", "MirrorZoom", "", buf, sizeof buf, ini.c_str())) g_mirrorZoom = std::max(0.5f, std::min(2.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "DumpEyes", "", buf, sizeof buf, ini.c_str())) g_dumpEyes = buf[0] == '1';
-	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; if (g_mockLookAway || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
+	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; if (g_mockLookAway || g_mockBehind || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
 	if (GetPrivateProfileStringA("VR", "PanelDistance", "", buf, sizeof buf, ini.c_str())) g_panelDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenDistance", "", buf, sizeof buf, ini.c_str())) g_screenDist = std::max(0.5f, std::min(10.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenWidth", "", buf, sizeof buf, ini.c_str())) g_screenWidth = std::max(0.4f, std::min(10.0f, (float)atof(buf)));
@@ -576,6 +577,7 @@ static int g_sbKind = 0;      // 1 UT's scoreboard, 2 UT's spectator bar
 static float g_sbTop = 0;     // the window share it covers, from the top (0..1): the panel shows only that strip
 static float g_hlDist = 2.5f, g_hlHalfW = 1.18f, g_hlUp = -0.2f;   // kind 3, the game type's HUD: head-locked, metres   // PlacePanel for the scoreboard (its own distance)
 static float g_panelHead[3] = {};   // the head's position when the panel was placed
+static bool g_panelSeen = false;      // the main menus' panel has been in front of you since it was placed
 static bool g_panelSeated = false, g_panelSeatedWorn = false;   // placed facing the calibration; the headset was worn then   // the next placement follows the headset (you looked away from the panel)
 
 // the panel in front of a pose: the headset's, or (bSeated) the seated calibration - the main menus at startup
@@ -1250,7 +1252,31 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 				g_panelPlaced = false;
 			}
 		}
-		if (!g_panelPlaced) PlacePanel(standalone && !g_panelRecentred);
+		// the main menus: until you have looked at the panel once, holding your gaze still well away from it (60 deg,
+		// 1 s) places it again in front of you. It was placed facing the seated calibration or the headset's pose at
+		// startup, and both can be far off where you sit (user: "the startup screen is behind me to the left"; the
+		// calibration was 107 deg off). Once seen it stays put (a panel that followed you was gone when you looked back)
+		if (g_panelPlaced && standalone && g_worn && !g_screenMode && !g_panelSeen)
+		{
+			static double stillSince = 0;
+			static float stillF[2] = {};
+			const vr::HmdMatrix34_t& m = g_renderPose;
+			float fx = -m.m[0][2], fz = -m.m[2][2], l = sqrtf(fx * fx + fz * fz);
+			if (l > 0.3f)
+			{
+				fx /= l; fz /= l;
+				float dot = fx * -g_pN[0] + fz * -g_pN[2];
+				if (dot > cosf(30 * 3.14159265f / 180.0f)) { g_panelSeen = true; Log("panel seen"); }
+				else if (fx * stillF[0] + fz * stillF[1] < cosf(10 * 3.14159265f / 180.0f)) { stillF[0] = fx; stillF[1] = fz; stillSince = Now(); }
+				else if (dot < 0.5f && Now() - stillSince > 1000)
+				{
+					Log("looking %.0f deg away from a panel you haven't seen: placing it in front of you", acosf(std::max(-1.0f, std::min(1.0f, dot))) * 180 / 3.14159265f);
+					g_panelPlaced = false;
+					g_panelRecentred = true;
+				}
+			}
+		}
+		if (!g_panelPlaced) { if (!g_panelRecentred) g_panelSeen = false; PlacePanel(standalone && !g_panelRecentred); }
 		g_panelRecentred = false;
 		// in a game the menu is on black (VRHUD): key it out; so is a dialog drawn alone; the main menus' own
 		// backdrop stays
@@ -1490,6 +1516,7 @@ static void AfterPresent(UINT bbW, UINT bbH)
 			float ya = (g_frames < 2200 ? 0.0f : g_frames < 3000 ? 40.0f : 55.0f) * 3.14159265f / 180.0f;
 			f = V3{ cosf(ya), sinf(ya), 0 };
 		}
+		if (g_mockBehind) { static double placedAt = 0; if (g_panelPlaced && placedAt == 0) placedAt = Now(); bool on = placedAt > 0 && Now() - placedAt > 2000; g_worn = on; float yb = (on ? 120.0f : 0.0f) * 3.14159265f / 180.0f; f = V3{ cosf(yb), sinf(yb), 0 }; }
 		if (g_mockHeading && g_frames >= 300) { float y6 = 60.0f * 3.14159265f / 180.0f; f = V3{ cosf(y6), sinf(y6), 0 }; }
 		if (g_mockPitchRoll)
 		{

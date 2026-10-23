@@ -110,7 +110,8 @@ var bool     bSeatZero;
 var bool     bChairFromGaze;
 var bool     bSpecFireHeld, bSpecAltHeld;   // spectating: the buttons last tick
 var float    SpecSwitchTime, TapFireUntil;           // the next chair forward comes from the gaze (recenter), not the seated calibration
-var bool     bCineYawSeated, bCinePosWorn;
+var bool     bCinePosWorn;
+var int      CineYawSrc;   // the free view's heading: 0 the headset at startup, 1 the seated calibration, 2 your head once worn, 3 your chair
 var float    CineWaitStart;
 var int      TurretEntryYaw;
 var config float VehicleBehindPitch;  // behind view in a vehicle: the camera looks down this much (deg)...
@@ -1214,7 +1215,37 @@ simulated function bool IsCinematic()
 
 // no pawn and not dead: a cinematic, waiting for the match ("press fire to start"), spectating. The eyes go to UT's
 // own camera with the head tracked on top, so you can always look around.
-simulated function bool IsFreeView()
+simulated // the free view's heading (see the intro anchor in the view code): upgrades from the startup headset pose to the
+// seated calibration, to your head once you wear it, to your chair's forward once measured. Your head's heading is
+// taken once and only replaced by the chair when they are 20 deg apart (no small jump mid-intro).
+function CineYawFrom()
+{
+	local int d;
+
+	if ( CineYawSrc < 3 && bChairMeasured )
+	{
+		d = ((ChairYaw - CineRefYaw + 32768) & 65535) - 32768;
+		if ( CineYawSrc < 2 || Abs(d) > 3640 )
+		{
+			CineRefYaw = ChairYaw;
+			Log("UT2004VR: free view faces your chair, yaw "$ChairYaw$" ("$(d * 360 / 65536)$" deg turn)", 'UT2004VR');
+		}
+		CineYawSrc = 3;
+	}
+	else if ( CineYawSrc < 2 && WornTime > 0.5 )
+	{
+		CineRefYaw = rotator(HeadF).Yaw;
+		CineYawSrc = 2;
+		Log("UT2004VR: free view faces your head, yaw "$CineRefYaw, 'UT2004VR');
+	}
+	else if ( CineYawSrc < 1 && bSeatZero )
+	{
+		CineRefYaw = rotator(SeatZeroF).Yaw;
+		CineYawSrc = 1;
+	}
+}
+
+function bool IsFreeView()
 {
 	return Pawn == None && !IsInState('Dead');
 }
@@ -1230,26 +1261,26 @@ simulated function UpdateHeadWorld()
 		// camera's heading (yaw only: the horizon stays level whatever the camera pitches or rolls)
 		// the anchor waits for real head data (before the first packet HeadPos is zero, which would add your whole
 		// head height on top of the camera)
-		// facing SteamVR's seated calibration when there is one: at startup the headset often lies on the desk,
-		// facing anywhere, and the intro played off to the side. Its position is not where you sit (it can be
-		// half a metre off and well below your head), so the position is your head's, taken again once you wear it.
+		// facing where you sit: your chair's forward once it is measured (your level gaze), before that your head's
+		// heading once you wear the headset. SteamVR's seated calibration only while the headset isn't on: at
+		// startup it often lies on the desk, facing anywhere, and the calibration can be far off how you sit
+		// today (107 deg once: the intro played behind you to the left). The position is your head's, taken again
+		// once you wear it (the calibration's can be half a metre off and well below your head).
 		if ( !bCineAnchored && VRActive() && VSize(HeadPos) > 0.1 )
 		{
 			if ( CineWaitStart == 0 )
 				CineWaitStart = Level.TimeSeconds;
 			CineAnchor = HeadPos;   // meanwhile the eyes stay at the camera
 			// the calibration comes with the proxy's static packets (~every 0.7 s): wait for it a moment
-			if ( bSeatZero || Level.TimeSeconds - CineWaitStart > 1.5 )
+			if ( bChairMeasured || WornTime > 0.5 || bSeatZero || Level.TimeSeconds - CineWaitStart > 1.5 )
 			{
 				bCineAnchored = true;
-				bCineYawSeated = bSeatZero;
 				bCinePosWorn = WornTime > 0.5;
 				CineAnchor = HeadPos;
-				if ( bSeatZero )
-					CineRefYaw = rotator(SeatZeroF).Yaw;
-				else
-					CineRefYaw = rotator(HeadF).Yaw;
-				Log("UT2004VR: free view anchored, yaw "$CineRefYaw$" from "$Mid("headset  seated", 9 * int(bSeatZero), 8)$" head "$HeadPos$" worn "$bCinePosWorn, 'UT2004VR');
+				CineYawSrc = 0;
+				CineRefYaw = rotator(HeadF).Yaw;
+				CineYawFrom();
+				Log("UT2004VR: free view anchored, yaw "$CineRefYaw$" (source "$CineYawSrc$": 0 headset, 1 seated, 2 head, 3 chair) head "$HeadPos$" worn "$bCinePosWorn, 'UT2004VR');
 			}
 		}
 		if ( bCineAnchored && !bCinePosWorn && WornTime > 0.5 )
@@ -1258,11 +1289,8 @@ simulated function UpdateHeadWorld()
 			CineAnchor = HeadPos;
 			Log("UT2004VR: free view: headset on, anchored at your head "$HeadPos, 'UT2004VR');
 		}
-		if ( bCineAnchored && !bCineYawSeated && bSeatZero )
-		{
-			bCineYawSeated = true;
-			CineRefYaw = rotator(SeatZeroF).Yaw;
-		}
+		if ( bCineAnchored )
+			CineYawFrom();
 		RefR.Yaw = CineRefYaw;
 		if ( bCineCam )
 		{
