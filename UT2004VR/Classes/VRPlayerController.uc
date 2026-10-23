@@ -2050,7 +2050,7 @@ function ApplyRecoil(Weapon W, Actor A, vector HandW, vector X, vector Z, out ve
 		if ( F.NextFireTime > RecoilNFT[m] + 0.001 && F.NextFireTime > Level.TimeSeconds + F.PreFireTime + 0.0005 )
 		{
 			// a shot: this mode's kick (the list, else from its fire rate: slow guns kick hard)
-			RecoilBack = FClamp(F.FireRate * 4, 0.4, 5);
+			RecoilBack = FClamp(F.FireRate * 10, 1, 12);
 			RecoilUp = RecoilBack * 1.3;
 			for ( i = 0; i < Recoils.Length; i++ )
 				if ( F.IsA(Recoils[i].Fire) )
@@ -4660,31 +4660,31 @@ defaultproperties
 	GunLagMax=0.015
 	GunLagSmooth=0.15
 	RecoilScale=1.0
-	RecoilReturn=0.15
-	Recoils(0)=(Fire="ZoomSuperShockBeamFire",Back=3,Up=4)
-	Recoils(1)=(Fire="SuperShockBeamFire",Back=3,Up=4)
-	Recoils(2)=(Fire="ShockBeamFire",Back=2.5,Up=3.5)
-	Recoils(3)=(Fire="ShockProjFire",Back=1.5,Up=2.5)
-	Recoils(4)=(Fire="SniperFire",Back=4,Up=6)
-	Recoils(5)=(Fire="FlakFire",Back=4.5,Up=7)
-	Recoils(6)=(Fire="FlakAltFire",Back=4.5,Up=8)
-	Recoils(7)=(Fire="RocketMultiFire",Back=5,Up=7)
-	Recoils(8)=(Fire="RocketFire",Back=3.5,Up=5)
-	Recoils(9)=(Fire="RedeemerFire",Back=6,Up=8)
-	Recoils(10)=(Fire="BioChargedFire",Back=2.5,Up=4)
-	Recoils(11)=(Fire="BioFire",Back=1.2,Up=2)
-	Recoils(12)=(Fire="AssaultGrenade",Back=2,Up=3)
-	Recoils(13)=(Fire="AssaultFire",Back=0.8,Up=1.2)
-	Recoils(14)=(Fire="MinigunFire",Back=0.3,Up=0.4)
-	Recoils(15)=(Fire="LinkAltFire",Back=0.8,Up=1)
-	Recoils(16)=(Fire="LinkFire",Back=0.15,Up=0.2)
-	Recoils(17)=(Fire="ShieldFire",Back=-4,Up=1)
+	RecoilReturn=0.22
+	Recoils(0)=(Fire="ZoomSuperShockBeamFire",Back=8,Up=10)
+	Recoils(1)=(Fire="SuperShockBeamFire",Back=8,Up=10)
+	Recoils(2)=(Fire="ShockBeamFire",Back=7,Up=9)
+	Recoils(3)=(Fire="ShockProjFire",Back=5,Up=7)
+	Recoils(4)=(Fire="SniperFire",Back=12,Up=15)
+	Recoils(5)=(Fire="FlakFire",Back=12,Up=16)
+	Recoils(6)=(Fire="FlakAltFire",Back=12,Up=18)
+	Recoils(7)=(Fire="RocketMultiFire",Back=14,Up=18)
+	Recoils(8)=(Fire="RocketFire",Back=10,Up=12)
+	Recoils(9)=(Fire="RedeemerFire",Back=15,Up=18)
+	Recoils(10)=(Fire="BioChargedFire",Back=8,Up=10)
+	Recoils(11)=(Fire="BioFire",Back=4,Up=6)
+	Recoils(12)=(Fire="AssaultGrenade",Back=6,Up=8)
+	Recoils(13)=(Fire="AssaultFire",Back=2.5,Up=3.5)
+	Recoils(14)=(Fire="MinigunFire",Back=1,Up=1.5)
+	Recoils(15)=(Fire="LinkAltFire",Back=2.5,Up=3.5)
+	Recoils(16)=(Fire="LinkFire",Back=0.5,Up=0.7)
+	Recoils(17)=(Fire="ShieldFire",Back=-10,Up=3)
 	Recoils(18)=(Fire="ShieldAltFire",Back=0,Up=0)
-	Recoils(19)=(Fire="TransFire",Back=1,Up=2)
+	Recoils(19)=(Fire="TransFire",Back=3,Up=5)
 	Recoils(20)=(Fire="PainterFire",Back=0,Up=0)
-	Recoils(21)=(Fire="ONSAVRiLFire",Back=5,Up=6)
-	Recoils(22)=(Fire="ONSGrenadeFire",Back=1.5,Up=3)
-	Recoils(23)=(Fire="ONSMineThrowFire",Back=1.5,Up=2.5)
+	Recoils(21)=(Fire="ONSAVRiLFire",Back=12,Up=14)
+	Recoils(22)=(Fire="ONSGrenadeFire",Back=5,Up=8)
+	Recoils(23)=(Fire="ONSMineThrowFire",Back=4,Up=6)
 	NeckModelMode=2
 	NeckBlendTime=0.3
 	NeckForward=0.09
