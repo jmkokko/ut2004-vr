@@ -174,6 +174,21 @@ var bool   bGunCalibrated;
 var vector GunTarget;           // world point where the muzzle sits this tick
 var vector GunHandleW, GunHandW; // debug: the handle point and the hand this tick
 var Actor  GunModel;            // what is drawn in the hand (third-person model; complete and real-size)
+// recoil: each shot kicks the gun back and its muzzle up, and it springs back. Only the model moves: shots still go
+// along your aim. The first-person weapons' fire animations (UT's kick) are on models with arms and missing backs,
+// so the held third-person model gets this one instead.
+struct RecoilKick
+{
+	var name  Fire;             // the fire mode's class (or a parent): the first match in the list counts
+	var float Back;             // cm
+	var float Up;               // degrees
+};
+var array<RecoilKick> Recoils;
+var config float RecoilScale;   // 0 = off
+var config float RecoilReturn;  // seconds the gun takes to spring most of the way back
+var float RecoilAmt, RecoilShown, RecoilBack, RecoilUp, RecoilAt;
+var float RecoilNFT[2];          // each fire mode's NextFireTime: it moves on with every shot
+var Weapon RecoilWeapon;
 var config bool  bAutoHeight;       // seated-friendly: map your head height at spawn/recenter to StandEyeMeters
 var config float StandEyeMeters;
 var config bool  bMatchGameHeight;   // eyes at the pawn's stock eye height (UT2004: 44 + 38 = 82 uu), whatever your real height
@@ -1967,6 +1982,7 @@ function UpdateGun()
 		HandW = GunTip() + GunOffset.X * X + GunOffset.Y * Y + GunOffset.Z * Z;
 		A.SetRotation(OrthoRotation(Xw, Yw, Zw));
 		A.SetLocation(HandW - (HandleL.X * Xw + HandleL.Y * Yw + HandleL.Z * Zw));
+		ApplyRecoil(W, A, HandW, X, Z, Xw, Yw, Zw);
 	}
 	TipW = A.Location + G.TipL.X * Xw + G.TipL.Y * Yw + G.TipL.Z * Zw;
 	if ( bTPGun )
@@ -2001,6 +2017,80 @@ function UpdateGun()
 		W.SetDrawScale(W.Default.DrawScale * 0.001);
 	W.SetRotation(Rotation);
 	W.SetLocation(TipW + X * 15);
+}
+
+// the recoil of the shots fired since the last tick (see RecoilKick): the gun (axes Xw, Yw, Zw, placed with its
+// handle at HandW) is pushed back along the aim X and turned muzzle-up about the handle
+function ApplyRecoil(Weapon W, Actor A, vector HandW, vector X, vector Z, out vector Xw, out vector Yw, out vector Zw)
+{
+	local int m, i;
+	local WeaponFire F;
+	local float Dt, Amt, Ca, Sa, cx, cz;
+	local vector L;
+
+	if ( RecoilScale <= 0 )
+		return;
+	if ( W != RecoilWeapon )
+	{
+		RecoilWeapon = W;
+		RecoilAmt = 0;
+		for ( m = 0; m < 2; m++ )
+		{
+			F = W.GetFireMode(m);
+			if ( F != None )
+				RecoilNFT[m] = F.NextFireTime;
+		}
+	}
+	for ( m = 0; m < 2; m++ )
+	{
+		F = W.GetFireMode(m);
+		if ( F == None )
+			continue;
+		// (starting to fire also moves it on, to now + PreFireTime: not a shot)
+		if ( F.NextFireTime > RecoilNFT[m] + 0.001 && F.NextFireTime > Level.TimeSeconds + F.PreFireTime + 0.0005 )
+		{
+			// a shot: this mode's kick (the list, else from its fire rate: slow guns kick hard)
+			RecoilBack = FClamp(F.FireRate * 4, 0.4, 5);
+			RecoilUp = RecoilBack * 1.3;
+			for ( i = 0; i < Recoils.Length; i++ )
+				if ( F.IsA(Recoils[i].Fire) )
+				{
+					RecoilBack = Recoils[i].Back;
+					RecoilUp = Recoils[i].Up;
+					break;
+				}
+			// rapid fire adds up a little, never past one and a half kicks
+			RecoilAmt = FMin(RecoilAmt + 1.0, 1.5);
+			if ( bDebugLog )
+				Log("UT2004VR: recoil "$F.Class.Name$" back "$RecoilBack$" cm up "$RecoilUp$" deg amount "$RecoilAmt, 'UT2004VR');
+		}
+		RecoilNFT[m] = F.NextFireTime;
+	}
+	if ( Level.TimeSeconds != RecoilAt )
+	{
+		Dt = FClamp(Level.TimeSeconds - RecoilAt, 0, 0.1);
+		RecoilAt = Level.TimeSeconds;
+		// the kick springs back over RecoilReturn; the shown gun follows it within ~20 ms (no one-frame jump)
+		RecoilAmt *= Exp(-Dt / FMax(RecoilReturn / 3, 0.01));
+		RecoilShown += (RecoilAmt - RecoilShown) * FMin(1, Dt / 0.02);
+	}
+	Amt = RecoilShown * RecoilScale;
+	if ( Amt < 0.001 )
+		return;
+	Ca = Cos(RecoilUp * Amt * 0.0174533);
+	Sa = Sin(RecoilUp * Amt * 0.0174533);
+	// muzzle up about the gun's right axis through the handle: X -> X cos + Z sin, Z -> Z cos - X sin
+	L = A.Location - HandW;
+	cx = L dot X; cz = L dot Z;
+	L += (cx * (Ca - 1) - cz * Sa) * X + (cx * Sa + cz * (Ca - 1)) * Z;
+	cx = Xw dot X; cz = Xw dot Z;
+	Xw += (cx * (Ca - 1) - cz * Sa) * X + (cx * Sa + cz * (Ca - 1)) * Z;
+	cx = Yw dot X; cz = Yw dot Z;
+	Yw += (cx * (Ca - 1) - cz * Sa) * X + (cx * Sa + cz * (Ca - 1)) * Z;
+	cx = Zw dot X; cz = Zw dot Z;
+	Zw += (cx * (Ca - 1) - cz * Sa) * X + (cx * Sa + cz * (Ca - 1)) * Z;
+	A.SetRotation(OrthoRotation(Xw, Yw, Zw));
+	A.SetLocation(HandW + L - X * (RecoilBack * Amt * UUPerMeter / 100));
 }
 
 function UpdateLaser(bool bShow, vector Start, vector Dir, optional bool bHasEnd, optional vector ForcedEnd, optional bool bForcedHit)
@@ -4569,6 +4659,32 @@ defaultproperties
 	GunLagTime=0.12
 	GunLagMax=0.015
 	GunLagSmooth=0.15
+	RecoilScale=1.0
+	RecoilReturn=0.15
+	Recoils(0)=(Fire="ZoomSuperShockBeamFire",Back=3,Up=4)
+	Recoils(1)=(Fire="SuperShockBeamFire",Back=3,Up=4)
+	Recoils(2)=(Fire="ShockBeamFire",Back=2.5,Up=3.5)
+	Recoils(3)=(Fire="ShockProjFire",Back=1.5,Up=2.5)
+	Recoils(4)=(Fire="SniperFire",Back=4,Up=6)
+	Recoils(5)=(Fire="FlakFire",Back=4.5,Up=7)
+	Recoils(6)=(Fire="FlakAltFire",Back=4.5,Up=8)
+	Recoils(7)=(Fire="RocketMultiFire",Back=5,Up=7)
+	Recoils(8)=(Fire="RocketFire",Back=3.5,Up=5)
+	Recoils(9)=(Fire="RedeemerFire",Back=6,Up=8)
+	Recoils(10)=(Fire="BioChargedFire",Back=2.5,Up=4)
+	Recoils(11)=(Fire="BioFire",Back=1.2,Up=2)
+	Recoils(12)=(Fire="AssaultGrenade",Back=2,Up=3)
+	Recoils(13)=(Fire="AssaultFire",Back=0.8,Up=1.2)
+	Recoils(14)=(Fire="MinigunFire",Back=0.3,Up=0.4)
+	Recoils(15)=(Fire="LinkAltFire",Back=0.8,Up=1)
+	Recoils(16)=(Fire="LinkFire",Back=0.15,Up=0.2)
+	Recoils(17)=(Fire="ShieldFire",Back=-4,Up=1)
+	Recoils(18)=(Fire="ShieldAltFire",Back=0,Up=0)
+	Recoils(19)=(Fire="TransFire",Back=1,Up=2)
+	Recoils(20)=(Fire="PainterFire",Back=0,Up=0)
+	Recoils(21)=(Fire="ONSAVRiLFire",Back=5,Up=6)
+	Recoils(22)=(Fire="ONSGrenadeFire",Back=1.5,Up=3)
+	Recoils(23)=(Fire="ONSMineThrowFire",Back=1.5,Up=2.5)
 	NeckModelMode=2
 	NeckBlendTime=0.3
 	NeckForward=0.09
