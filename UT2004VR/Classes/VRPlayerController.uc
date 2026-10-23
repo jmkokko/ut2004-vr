@@ -3649,6 +3649,7 @@ simulated event RenderTexture(ScriptedTexture Tex)
 	local vector Loc;
 	local rotator Rot;
 	local color EyeTag;
+	local SpinnyWeap Spinny;
 	local float A;
 
 	if ( Tex == ScopeTex && ScopeTex != None )
@@ -3674,12 +3675,17 @@ simulated event RenderTexture(ScriptedTexture Tex)
 		NextGunEyeLog = Level.TimeSeconds + 0.5;
 		Log("VR gun-in-eye: "$((GunModel.Location - Loc) << Rot)$" vel="$Pawn.Velocity$" headrot="$VRHeadRot$" aim="$Rotation, 'UT2004VR');
 	}
+	ScopeHidden.Length = 0;
+	// the menus' 3D previews (Settings > Player's character, Weapons' gun, the model picker): UT spawns them in the
+	// world just in front of the camera and draws them into the menu; in the eyes they hung at your face and
+	// turned with your head. Hidden only for the eye renders: the menu panel still shows them.
+	foreach DynamicActors(class'SpinnyWeap', Spinny)
+		ScopeHide(Spinny);
 	// dead (no pawn): keep the eyes rendering from where you fell, so the headset image never freezes
 	if ( Pawn != None )
 	{
 		// in a vehicle or on a turret your own character sits at your eyes (UT draws the driver on gunner seats
 		// and turrets): not in your view; others still see it
-		ScopeHidden.Length = 0;
 		if ( Vehicle(Pawn) != None && Vehicle(Pawn).Driver != None && !bBehindView )
 		{
 			ScopeHide(Vehicle(Pawn).Driver);
@@ -3688,10 +3694,6 @@ simulated event RenderTexture(ScriptedTexture Tex)
 				ScopeHide(Vehicle(Pawn).Driver.Weapon.ThirdPersonActor);
 		}
 		Tex.DrawPortal(0, 0, Tex.USize, Tex.VSize, Pawn, Loc, Rot, EyeFOV, true);
-		for ( i = 0; i < ScopeHidden.Length; i++ )
-			if ( ScopeHidden[i] != None )
-				ScopeHidden[i].bHidden = false;
-		ScopeHidden.Length = 0;
 	}
 	else if ( IsFreeView() && bCineCam )
 	{
@@ -3706,6 +3708,10 @@ simulated event RenderTexture(ScriptedTexture Tex)
 	}
 	else
 		Tex.DrawPortal(0, 0, Tex.USize, Tex.VSize, self, Loc, Rot, EyeFOV, true);
+	for ( i = 0; i < ScopeHidden.Length; i++ )
+		if ( ScopeHidden[i] != None )
+			ScopeHidden[i].bHidden = false;
+	ScopeHidden.Length = 0;
 
 	if ( bRedeemerWindow && IsRiding() )
 		DrawRedeemerWindow(Tex, Loc, Rot);
