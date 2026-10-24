@@ -3356,7 +3356,9 @@ function KBMAfterMove()
 	if ( bDebugLog && Level.TimeSeconds > NextDebugLog )
 	{
 		NextDebugLog = Level.TimeSeconds + 1.0;
-		Log("VR kbm pitch: gun-vs-view "$(GunVsViewPitch())$" deg, yaw "$GunVsViewYaw()$" deg, aim "$Rotation$" view "$VRHeadRot$" chair "$ChairYaw$"/"$ChairPitch$" behind "$bBehindView$" state "$GetStateName()$" gun "$GunModel$" rot "$GunModel.Rotation, 'UT2004VR');
+		Log("VR kbm pitch: gun-vs-view "$(GunVsViewPitch())$" deg, yaw "$GunVsViewYaw()$" deg, aim "$Rotation$" view "$VRHeadRot$" chair "$ChairYaw$"/"$ChairPitch$" behind "$bBehindView$" state "$GetStateName()$" gun "$GunModel, 'UT2004VR');
+		if ( GunModel != None )
+			Log("VR kbm gun rot "$GunModel.Rotation, 'UT2004VR');
 		Log("VR kbm: aim="$Rotation$" chair="$ChairYaw$" playyaw="$PlayYaw$" head="$HeadPos$" headrot="$VRHeadRot$" gun="$GunModel$" cal="$bGunCalibrated$" paused="$(Level.Pauser != None), 'UT2004VR');
 	}
 	// the playspace follows the mouse heading: looking straight ahead (the chair's forward) = where you walk

@@ -67,6 +67,7 @@ function bool ReloadWithVR(PlayerController PC)
 	local string URL, Opt, Out;
 	local array<string> Parts;
 	local int k;
+	local bool bSpecOpt;
 	if ( !WillReloadWithVR(PC) || PC.Level.TimeSeconds < 0.5 )
 		return false;
 	URL = PC.Level.GetLocalURL();
@@ -74,17 +75,24 @@ function bool ReloadWithVR(PlayerController PC)
 	// the map and options only (the local URL starts with the protocol and host on some builds)
 	if ( InStr(URL, "/") >= 0 )
 		URL = Mid(URL, InStr(URL, "/") + 1);
-	// drop the player's own options: the engine adds them again from [DefaultPlayer], and a space in one (a
-	// character called "Combine Charger") would cut the console command short
+	// keep the player's own options as the game was started with them: Single Player plays as its profile (its
+	// name, character and team, "NoSaveDefPlayer"), and without them the engine filled in [DefaultPlayer] - the
+	// multiplayer name, character and SpectatorOnly=1, so the ladder match started with you as a spectator. Only
+	// an option with a space is left out (a character called "Combine Charger" would cut the console command short).
 	Split(URL, "?", Parts);
 	Out = Parts[0];
 	for ( k = 1; k < Parts.Length; k++ )
 	{
 		Opt = Caps(Left(Parts[k], InStr(Parts[k] $ "=", "=")));
-		if ( Opt == "NAME" || Opt == "CLASS" || Opt == "CHARACTER" || Opt == "TEAM" || Opt == "SEX" || InStr(Parts[k], " ") >= 0 )
+		if ( Opt == "SPECTATORONLY" )
+			bSpecOpt = true;
+		if ( InStr(Parts[k], " ") >= 0 )
 			continue;
 		Out = Out $ "?" $ Parts[k];
 	}
+	// started without a spectator option: a player, whatever [DefaultPlayer] says
+	if ( !bSpecOpt )
+		Out = Out $ "?SpectatorOnly=0";
 	URL = Mid(WithVRMutator("open " $ Out), 5);
 	Log("UT2004VR: "$PC.Level.Game.Class$" started without VR: reloading "$URL, 'UT2004VR');
 	PC.ConsoleCommand("open " $ URL);
