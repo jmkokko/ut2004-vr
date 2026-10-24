@@ -205,6 +205,9 @@ simulated function SetShadow(class<HUD> C)
 	Shadow.SetPropertyText("bShow3DArrow", "False");
 	Shadow.SetPropertyText("HealthBarViewDist", "0");   // Onslaught's node / core health bars (drawn at screen positions)
 	Log("UT2004VR: original HUD "$Shadow$" captured for the headset", 'UT2004VR');
+	// Onslaught's menu map tab reads its HUD through myHUD: the VR tab hands it this one
+	if ( ONSHUDOnslaught(Shadow) != None )
+		class'UT2K4OnslaughtLoginMenu'.default.OnslaughtMapPanel.ClassName = "UT2004VR.VROnslaughtMap";
 }
 
 // UT's own 2D message drawing into the HUD layer: the special messages, the console lines and the typing prompt

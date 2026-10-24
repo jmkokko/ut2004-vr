@@ -98,6 +98,7 @@ static bool g_mockGun = false;
 static bool g_mockSeated = false;
 static bool g_mockHeading = false;
 static bool g_mockJump = false;
+static bool g_mockJoin = false;      // MockDemo=b: still head; the trigger pressed at ~frames 400 and 900 to join the match, no other input
 static bool g_mockBehind = false;    // MockDemo=a: the main menus' panel placed while the headset lay on the desk; 2 s later it is on, facing 120 deg to one side
 static bool g_mockLookAway = false;  // MockDemo=9: worn, head straight (the menu comes up), then 40 deg, then 55 deg to one side
 static bool g_mockCrouch = false;  // MockDemo=8: accidental vs deliberate crouch click, then jump out of crouch    // MockDemo=7: jump, then jump again at the apex (double jump) // MockDemo=6: look 60 deg right, then walk forward, then dodge L/R  // MockDemo=5: still, seated head that rises 20 cm     // MockDemo=4: still head, hand aiming forward, scripted fire // MockDemo=3: like 2, head pitched 20 and rolled 15  // MockDemo=2: head still, headset-sized window (projection calibration)   // MockDemo=1: scripted stick input in mock mode
@@ -118,7 +119,7 @@ static void ReadConfig()
 	if (GetPrivateProfileStringA("VR", "MirrorFill", "", buf, sizeof buf, ini.c_str())) g_mirrorFill = buf[0] != '0';
 	if (GetPrivateProfileStringA("VR", "MirrorZoom", "", buf, sizeof buf, ini.c_str())) g_mirrorZoom = std::max(0.5f, std::min(2.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "DumpEyes", "", buf, sizeof buf, ini.c_str())) g_dumpEyes = buf[0] == '1';
-	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; if (g_mockLookAway || g_mockBehind || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
+	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b'; if (g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
 	if (GetPrivateProfileStringA("VR", "PanelDistance", "", buf, sizeof buf, ini.c_str())) g_panelDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenDistance", "", buf, sizeof buf, ini.c_str())) g_screenDist = std::max(0.5f, std::min(10.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenWidth", "", buf, sizeof buf, ini.c_str())) g_screenWidth = std::max(0.4f, std::min(10.0f, (float)atof(buf)));
@@ -213,7 +214,7 @@ static bool g_vrTried = false;
 static bool g_mock = false;
 static vr::VRActionSetHandle_t g_set = 0;
 static vr::VRActionHandle_t g_aMove = 0, g_aTurn = 0, g_aJump = 0, g_aCrouch = 0, g_aMenu = 0, g_aPoseL = 0, g_aPoseR = 0;
-static vr::VRActionHandle_t g_aFire = 0, g_aAlt = 0, g_aNext = 0, g_aPrev = 0, g_aDodge = 0, g_aScores = 0;
+static vr::VRActionHandle_t g_aFire = 0, g_aAlt = 0, g_aNext = 0, g_aPrev = 0, g_aDodge = 0, g_aScores = 0, g_aUse = 0;
 static bool g_input = false;
 static float g_tan[2][4];            // l r t b per eye
 static float g_headFwdTan[2][2] = {}; // where the head's forward lands in each eye, in tangents (x right, y up)
@@ -298,6 +299,7 @@ static void InitInput()
 	vr::VRInput()->GetActionHandle("/actions/main/in/prevweapon", &g_aPrev);
 	vr::VRInput()->GetActionHandle("/actions/main/in/dodge", &g_aDodge);
 	vr::VRInput()->GetActionHandle("/actions/main/in/scoreboard", &g_aScores);
+	vr::VRInput()->GetActionHandle("/actions/main/in/use", &g_aUse);
 	vr::VRInput()->GetActionHandle("/actions/main/in/pose_right", &g_aPoseR);
 	g_input = true;
 	Log("input actions ready (%s)", manifest.c_str());
@@ -1566,6 +1568,8 @@ static void AfterPresent(UINT bbW, UINT bbH)
 			int jp = ((f8 >= 1100 && f8 < 1104) || (f8 >= 1300 && f8 < 1304) || (f8 >= 1600 && f8 < 1604)) ? 1 : 0;
 			Send("I 0 %.1f 0 0 %d %d 0 0 0 0 0 0 0", fw, jp, cr);
 		}
+		else if (g_mockJoin)
+			Send("I 0 0 0 0 0 0 0 %d 0 0 0", ((g_frames >= 400 && g_frames < 406) || (g_frames >= 900 && g_frames < 906)) ? 1 : 0);
 		else if (g_mockJump)
 		{
 			int j = ((g_frames >= 600 && g_frames < 604) || (g_frames >= 632 && g_frames < 636)) ? 1 : 0;
@@ -1667,8 +1671,8 @@ static void AfterPresent(UINT bbW, UINT bbH)
 	float mx = Vec2(g_aMove, my);
 	float tx = Vec2(g_aTurn, ty);
 	if (g_menuOpen && g_panelPlaced) PanelPointer(Btn(g_aFire));
-	Send("I %.3f %.3f %.3f %.3f %d %d %d %d %d %d %d %d %d", mx, my, tx, ty, Btn(g_aJump), Btn(g_aCrouch), Btn(g_aMenu),
-		Btn(g_aFire), Btn(g_aAlt), Btn(g_aNext), Btn(g_aPrev), Btn(g_aDodge), Btn(g_aScores));
+	Send("I %.3f %.3f %.3f %.3f %d %d %d %d %d %d %d %d %d %d", mx, my, tx, ty, Btn(g_aJump), Btn(g_aCrouch), Btn(g_aMenu),
+		Btn(g_aFire), Btn(g_aAlt), Btn(g_aNext), Btn(g_aPrev), Btn(g_aDodge), Btn(g_aScores), Btn(g_aUse));
 	if (g_frames % 60 == 1) SendStatic();
 }
 

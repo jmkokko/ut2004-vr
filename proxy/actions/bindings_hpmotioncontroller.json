@@ -1,7 +1,7 @@
 {
   "controller_type": "hpmotioncontroller",
   "name": "UT2004VR defaults (HP Reverb G2)",
-  "description": "L stick move (gaze steers) / click jump, L trigger dodge, L grip crouch, Y menu (hold: recenter), X scoreboard; R stick turn/teleport / click next weapon, R trigger fire, R grip alt-fire, A next, B previous weapon",
+  "description": "L stick move (gaze steers) / click jump, L trigger dodge, L grip crouch, Y menu (hold: recenter), X scoreboard; R stick turn/teleport / click use (enter or leave a vehicle), R trigger fire, R grip alt-fire, A next, B previous weapon",
   "bindings": {
     "/actions/main": {
       "sources": [
@@ -73,7 +73,7 @@
           "mode": "button",
           "inputs": {
             "click": {
-              "output": "/actions/main/in/nextweapon"
+              "output": "/actions/main/in/use"
             }
           }
         },

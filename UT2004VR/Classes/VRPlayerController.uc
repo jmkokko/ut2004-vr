@@ -262,6 +262,10 @@ var int    EyeFOV;
 var int    EyeW, EyeH;
 var float  StickMX, StickMY, StickTX, StickTY;
 var bool   bBtnJump, bBtnCrouch, bBtnMenu;
+var string TapBtn;                 // debug: VRTapBtn
+var float  TapBtnUntil;
+var bool   bBtnUse, bOldUse;      // the right stick click: use (enter / leave a vehicle)
+var bool   bOldVehJump, bOldVehDodge, bOldVehNext, bOldVehPrev, bOldVehFire, bOldVehAlt;
 var bool   bOldJump, bOldCrouch;
 
 // ---- playspace ----
@@ -389,6 +393,8 @@ event PlayerTick(float DeltaTime)
 		bOldAlt = bBtnAlt;
 	}
 	TuneVehicleGuns();
+	if ( Vehicle(Pawn) != None && VRActive() && !bKeyboardMouse )
+		VRVehicleButtons();
 	if ( Vehicle(Pawn) != None && VRActive() )
 	{
 		// the hand-held gun stays behind while you drive; the laser comes from the vehicle's gun
@@ -499,6 +505,14 @@ function VRButtonsTick()
 	local GUIController G;
 	local bool bOpen;
 
+	// (held against the proxy's packets, which report every button each frame)
+	if ( TapBtnUntil > 0 && Level.TimeSeconds > TapBtnUntil )
+	{
+		SetTapBtn(false);
+		TapBtnUntil = 0;
+	}
+	else if ( TapBtnUntil > 0 )
+		SetTapBtn(true);
 	G = GUIController(Player.GUIController);
 	bOpen = G != None && G.bActive;
 	if ( bBtnMenu && !bOldMenu )
@@ -1053,6 +1067,8 @@ function VRPacket(string Text)
 			bBtnDodge = P[12] == "1";
 			bBtnScores = P[13] == "1";
 		}
+		if ( n >= 15 )
+			bBtnUse = P[14] == "1";
 		break;
 	case "Z":
 		// SteamVR's seated calibration (as SteamVR Home uses it)
@@ -2396,6 +2412,27 @@ exec function VRGiveWeapon(string ClassName)
 	Log("UT2004VR: gave "$W, 'UT2004VR');
 }
 
+// debug: press a controller button for 0.3 s, as the proxy would report it: use, jump, next, prev, dodge, crouch
+exec function VRTapBtn(string B)
+{
+	TapBtn = Caps(B);
+	TapBtnUntil = Level.TimeSeconds + 0.3;
+	SetTapBtn(true);
+}
+
+function SetTapBtn(bool bOn)
+{
+	switch ( TapBtn )
+	{
+	case "USE": bBtnUse = bOn; break;
+	case "JUMP": bBtnJump = bOn; break;
+	case "NEXT": bBtnNext = bOn; break;
+	case "PREV": bBtnPrev = bOn; break;
+	case "DODGE": bBtnDodge = bOn; break;
+	case "CROUCH": bBtnCrouch = bOn; break;
+	}
+}
+
 // debug: hold the right stick at "x y" for 3 s (where the warhead steering reads it)
 exec function VRStick(string XY)
 {
@@ -2471,10 +2508,107 @@ function VRWeaponInput()
 		CycleWeapon(1);
 	if ( bBtnPrev && !bOldPrev )
 		CycleWeapon(-1);
+	// the right stick click: use (enter the vehicle or turret you stand at, as the Use key does)
+	if ( bBtnUse && !bOldUse )
+	{
+		Log("UT2004VR: use (controller)", 'UT2004VR');
+		Use();
+	}
+	bOldUse = bBtnUse;
 	bOldFire = bBtnFire;
 	bOldAlt = bBtnAlt;
 	bOldNext = bBtnNext;
 	bOldPrev = bBtnPrev;
+}
+
+// controller mode in a vehicle or turret: the trigger and grip fire, A / B (next / previous weapon) change seats
+// (Assault's vehicles: UT's own next / previous: the fighter's target, the turret group's next turret), the left
+// stick click sounds the horn, the right stick click (use) gets out. Driving is in PlayerDriving.
+function VRVehicleButtons()
+{
+	if ( bBtnFire )
+		bFire = 1;
+	else
+		bFire = 0;
+	if ( bBtnAlt )
+		bAltFire = 1;
+	else
+		bAltFire = 0;
+	// UT stops the vehicle's guns itself once bFire / bAltFire are 0
+	if ( bBtnFire && !bOldVehFire )
+		Fire(0);
+	if ( bBtnAlt && !bOldVehAlt )
+		AltFire(0);
+	if ( bBtnNext && !bOldVehNext )
+		NextWeapon();
+	if ( bBtnPrev && !bOldVehPrev )
+		PrevWeapon();
+	if ( bBtnJump && !bOldVehJump )
+	{
+		Log("UT2004VR: horn (controller) "$Pawn.Class.Name, 'UT2004VR');
+		PlayVehicleHorn(0);
+	}
+	if ( bBtnUse && !bOldUse )
+	{
+		Log("UT2004VR: use (controller): leaving "$Pawn.Class.Name, 'UT2004VR');
+		Use();
+	}
+	bOldVehFire = bBtnFire;
+	bOldVehAlt = bBtnAlt;
+	bOldVehNext = bBtnNext;
+	bOldVehPrev = bBtnPrev;
+	bOldVehJump = bBtnJump;
+	bOldUse = bBtnUse;
+	// on foot again, the same press must not count there as a new one
+	bOldFire = bBtnFire;
+	bOldAlt = bBtnAlt;
+	bOldNext = bBtnNext;
+	bOldPrev = bBtnPrev;
+	bOldJump = bBtnJump;
+}
+
+// a stick axis with a small dead zone, rescaled so it still reaches 1
+function float StickAxis(float V)
+{
+	if ( Abs(V) < 0.15 )
+		return 0;
+	if ( V > 0 )
+		return (V - 0.15) / 0.85;
+	return (V + 0.15) / 0.85;
+}
+
+state PlayerDriving
+{
+	function PlayerMove(float DeltaTime)
+	{
+		// controller mode: the left stick drives (forward / back) and steers (left / right; hovering and flying
+		// vehicles strafe), as W/S and A/D do; the left trigger (dodge) jumps or rises, the grip (crouch) ducks or
+		// descends, as Space and C do
+		if ( VRActive() && !bKeyboardMouse && Vehicle(Pawn) != None )
+		{
+			if ( Level.TimeSeconds < DebugStickUntil )
+			{
+				StickMX = DebugStickX;
+				StickMY = DebugStickY;
+			}
+			aForward = StickAxis(StickMY) * 6000;
+			aStrafe = StickAxis(StickMX) * 6000;
+			aUp = 0;
+			if ( bBtnDodge )
+				aUp = 6000;
+			else if ( bBtnCrouch )
+				aUp = -6000;
+			if ( bBtnDodge && !bOldVehDodge )
+				bPressedJump = true;
+			bOldVehDodge = bBtnDodge;
+			if ( bDebugLog && (aForward != 0 || aStrafe != 0 || aUp != 0) && Level.TimeSeconds > NextCrossLog )
+			{
+				NextCrossLog = Level.TimeSeconds + 0.5;
+				Log("UT2004VR: drive stick "$StickMX$","$StickMY$" -> forward "$aForward$" strafe "$aStrafe$" up "$aUp, 'UT2004VR');
+			}
+		}
+		Super.PlayerMove(DeltaTime);
+	}
 }
 
 // UT's NextWeapon/PrevWeapon skip inventory group 0 (Redeemer, Ion Painter: keyboard key 0), which a

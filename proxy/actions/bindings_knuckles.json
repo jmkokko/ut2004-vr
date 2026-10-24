@@ -1,7 +1,7 @@
 {
   "controller_type": "knuckles",
   "name": "UT2004VR default (knuckles)",
-  "description": "L stick move / click jump, L trigger dodge, L grip crouch, L B menu (hold: recenter), L A scoreboard; R stick turn/teleport / click next weapon, R trigger fire, R grip alt-fire, A next, B previous weapon",
+  "description": "L stick move / click jump, L trigger dodge, L grip crouch, L B menu (hold: recenter), L A scoreboard; R stick turn/teleport / click use (enter or leave a vehicle), R trigger fire, R grip alt-fire, A next, B previous weapon",
   "bindings": {
     "/actions/main": {
       "sources": [
@@ -73,7 +73,7 @@
           "mode": "button",
           "inputs": {
             "click": {
-              "output": "/actions/main/in/nextweapon"
+              "output": "/actions/main/in/use"
             }
           }
         },

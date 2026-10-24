@@ -23,14 +23,20 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | (automatic) | UT's game messages (first blood, sprees, pickups, kills, chat) in the VR HUD with UT's own positions, colours and fonts. `bVRMessages=False` turns them off, `VRMessageFontBoost=2` sets how many font sizes bigger than UT's choice |
 | Right stick left/right | 45° snap turn (`VRSnap 30`, or `VRSnap 0` for smooth turn) |
 | Right stick forward | Aim the teleport arc; release to blink there |
-| Right stick click | Next weapon (the cycle includes the Redeemer and Ion Painter) |
+| Right stick click | Use: enter the vehicle or turret you stand at; in one, get out |
 | Right trigger | Fire; when dead, respawn; with the menu open, click. A faint red aiming laser runs from the muzzle to whatever the gun points at; it hides while firing and fades back in (`bLaser`, `LaserBrightness=0.45`, `LaserWidth=0.6`, `LaserFadeIn=0.5`, `LaserRange`, `LaserDotSize`) |
 | Right grip | Alt-fire |
 | Right A | Next weapon |
 | Right B | Previous weapon |
 | Walk in your room | The pawn follows your head, with collision |
+| **In a vehicle** | |
+| Left stick | Drive and steer (forward/back = throttle, left/right = steer; hovering and flying vehicles strafe) |
+| Left stick click | Horn |
+| Left trigger / left grip | Jump or rise (Manta, Raptor) / duck or descend |
+| Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |
+| Right trigger / grip | Fire / alt-fire |
 
-Index uses left B for the menu and left A for the scoreboard. WMR uses the left menu button and the left touchpad click, with the right touchpad for next weapon and the right menu button for previous weapon. Vive has no scoreboard button. Remap anything in SteamVR's Controller Bindings while the game runs.
+Index uses left B for the menu and left A for the scoreboard. WMR uses the left menu button and the left touchpad click, with the right touchpad for next weapon and the right menu button for previous weapon. Vive has no scoreboard button. Remap anything in SteamVR's Controller Bindings while the game runs. The cycle of A/B includes the Redeemer and Ion Painter.
 
 Weapons: `[UT2004VR.VRPlayerController]` `bWeapons=False` gives travel-only mode; `GunOffset` (uu, aim space: shifts the gun relative to the controller) and `GunPitchOffset` adjust how the gun sits in
 the hand. Each gun turns around its handle: the point where its third-person model hangs from a hand. Console, live, saved per

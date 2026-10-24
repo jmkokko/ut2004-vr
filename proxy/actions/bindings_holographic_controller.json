@@ -1,7 +1,7 @@
 {
   "controller_type": "holographic_controller",
   "name": "UT2004VR default (holographic_controller)",
-  "description": "L stick move / click jump, L trigger dodge, L grip crouch, L menu (hold: recenter), L touchpad scoreboard; R stick turn/teleport / click next weapon, R trigger fire, R grip alt-fire, R touchpad next, R menu previous weapon",
+  "description": "L stick move / click jump, L trigger dodge, L grip crouch, L menu (hold: recenter), L touchpad scoreboard; R stick turn/teleport / click use (enter or leave a vehicle), R trigger fire, R grip alt-fire, R touchpad next, R menu previous weapon",
   "bindings": {
     "/actions/main": {
       "sources": [
@@ -73,7 +73,7 @@
           "mode": "button",
           "inputs": {
             "click": {
-              "output": "/actions/main/in/nextweapon"
+              "output": "/actions/main/in/use"
             }
           }
         },
