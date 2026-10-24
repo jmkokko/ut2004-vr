@@ -245,6 +245,15 @@ simulated function DisplayHit(vector HitDir, int Damage, class<DamageType> damag
 		Shadow.DisplayHit(HitDir, Damage, damageType);
 }
 
+// a teammate's voice message (TeamVoicePack) or chat (Message, via HudCDeathMatch) shows the speaker's portrait:
+// UT tells this HUD, the game type's HUD beside it draws the portrait into the captured layer
+simulated function DisplayPortrait(PlayerReplicationInfo PRI)
+{
+	Super.DisplayPortrait(PRI);
+	if ( Shadow != None && PRI != None )
+		Shadow.DisplayPortrait(PRI);
+}
+
 // the HUD settings (Settings > HUD and the crosshair page) are made on this HUD and saved: the game type's HUD beside
 // it read them only when it was created, so they are passed on before each capture
 simulated function SyncShadow()
@@ -258,6 +267,10 @@ simulated function SyncShadow()
 	Shadow.bShowPortrait = bShowPortrait;
 	Shadow.bShowPortraitVC = bShowPortraitVC;
 	Shadow.bNoEnemyNames = bNoEnemyNames;
+	// voice chat (VoIP): the engine marks who is talking on this HUD only
+	Shadow.LastPlayerIDTalking = LastPlayerIDTalking;
+	if ( Shadow.LastPlayerIDTalkingTime != LastPlayerIDTalkingTime )
+		Shadow.SetPropertyText("LastPlayerIDTalkingTime", GetPropertyText("LastPlayerIDTalkingTime"));
 	Shadow.HudScale = HudScale;
 	Shadow.HudOpacity = HudOpacity;
 	Shadow.HudCanvasScale = HudCanvasScale;
