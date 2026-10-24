@@ -420,6 +420,13 @@ event PlayerTick(float DeltaTime)
 	}
 	if ( IsFreeView() && VRActive() )
 	{
+		// the end-of-round camera with your body still there: the hand-held gun and its laser stay behind
+		if ( Pawn != None )
+		{
+			UpdateLaser(false, vect(0,0,0), vect(1,0,0));
+			if ( GunModel != None )
+				GunModel.bHidden = true;
+		}
 		UpdateHeadWorld();
 		// the trigger: skips the startup intro to the menu, like a click does; otherwise presses fire (joins the match;
 		// in a Matinee intro such as Assault's briefing, UT's Fire skips the scene)
@@ -429,7 +436,7 @@ event PlayerTick(float DeltaTime)
 				SkipCinematic();
 			else
 			{
-				Log("UT2004VR: no pawn ("$GetStateName()$"), trigger -> fire", 'UT2004VR');
+				Log("UT2004VR: camera view ("$GetStateName()$"), trigger -> fire", 'UT2004VR');
 				Fire(0);
 			}
 		}
@@ -1279,7 +1286,11 @@ function CineYawFrom()
 
 function bool IsFreeView()
 {
-	return Pawn == None && !IsInState('Dead');
+	if ( Pawn == None )
+		return !IsInState('Dead');
+	// you still have a body, but UT looks through a camera: the end of an Assault round (its outro scene's cameras,
+	// or the objective's end camera / the objective in behind view), the end of a match
+	return ViewTarget != None && ViewTarget != Pawn && (bFixedCamera || IsInState('RoundEnded') || IsInState('GameEnded'));
 }
 
 simulated function UpdateHeadWorld()
@@ -2413,6 +2424,23 @@ exec function VRGiveWeapon(string ClassName)
 	Log("UT2004VR: gave "$W, 'UT2004VR');
 }
 
+// debug: log the actors of a class, e.g. VRActorLog UnrealGame.WillowWhisp
+exec function VRActorLog(string ClassName)
+{
+	local class<Actor> C;
+	local Actor A;
+	local int n;
+	C = class<Actor>(DynamicLoadObject(ClassName, class'Class'));
+	if ( C == None )
+		return;
+	foreach AllActors(C, A)
+	{
+		n++;
+		Log("UT2004VR: actor "$A$" at "$A.Location$" ("$int(VSize(A.Location - VRHeadWorld))$" uu from the eyes) hidden "$A.bHidden$" life "$A.LifeSpan, 'UT2004VR');
+	}
+	Log("UT2004VR: "$n$" "$C, 'UT2004VR');
+}
+
 // debug: press a controller button for 0.3 s, as the proxy would report it: use, jump, next, prev, dodge, crouch
 exec function VRTapBtn(string B)
 {
@@ -3036,6 +3064,26 @@ simulated function ClientSetHUD(class<HUD> newHUDClass, class<Scoreboard> newSco
 	// the game type's own HUD keeps running beside it: its screen part goes into the headset (VRHUD.Shadow)
 	if ( Orig != None && VRHUD(myHUD) != None && bVROriginalHud )
 		VRHUD(myHUD).SetShadow(Orig);
+}
+
+// Assault's "You are attacking / defending" message picks the objective to announce through myHUD as Assault's HUD,
+// and the announcement then shows the way there (the blue / red trail, HUD_Assault.AnnouncementPlayed). In VR myHUD
+// is VRHUD and the game type's HUD runs beside it: for that message it is myHUD while UT handles it; the text still
+// goes into VRHUD's messages.
+simulated event ReceiveLocalizedMessage(class<LocalMessage> Message, optional int Switch, optional PlayerReplicationInfo RelatedPRI_1, optional PlayerReplicationInfo RelatedPRI_2, optional Object OptionalObject)
+{
+	local HUD Mine;
+
+	if ( ClassIsChildOf(Message, class'Message_AssaultTeamRole') && VRHUD(myHUD) != None && HUD_Assault(VRHUD(myHUD).Shadow) != None )
+	{
+		Mine = myHUD;
+		myHUD = VRHUD(Mine).Shadow;
+		Super.ReceiveLocalizedMessage(Message, Switch, RelatedPRI_1, RelatedPRI_2, OptionalObject);
+		myHUD = Mine;
+		myHUD.LocalizedMessage(Message, Switch, RelatedPRI_1, RelatedPRI_2, OptionalObject);
+		return;
+	}
+	Super.ReceiveLocalizedMessage(Message, Switch, RelatedPRI_1, RelatedPRI_2, OptionalObject);
 }
 
 // as CinematicPlayer does on fire: open the main menu and leave the intro
@@ -3852,7 +3900,7 @@ simulated event RenderTexture(ScriptedTexture Tex)
 	foreach DynamicActors(class'SpinnyWeap', Spinny)
 		ScopeHide(Spinny);
 	// dead (no pawn): keep the eyes rendering from where you fell, so the headset image never freezes
-	if ( Pawn != None )
+	if ( Pawn != None && !(IsFreeView() && bCineCam) )
 	{
 		// in a vehicle or on a turret your own character sits at your eyes (UT draws the driver on gunner seats
 		// and turrets): not in your view; others still see it

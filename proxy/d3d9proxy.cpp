@@ -79,6 +79,7 @@ static int g_port = 7790;
 static bool g_forceMock = false;
 static bool g_mockDemo = false;
 static bool g_dumpEyes = false;
+static unsigned g_dumpStart = 400, g_dumpStep = 300;   // DumpEyesStart / DumpEyesStep: the first dump's frame, the frames between the 12
 static int g_mirrorEye = 0;       // MirrorEye: 0 left / 1 right eye copied into the desktop window, -1 off
 static bool g_mirrorFill = true;  // MirrorFill: crop the eye to fill the window (no black bars)
 static float g_mirrorZoom = 1.08f; // MirrorZoom: widen the mirror a little past the lens edge (the eye image is rendered wider)
@@ -119,6 +120,8 @@ static void ReadConfig()
 	if (GetPrivateProfileStringA("VR", "MirrorFill", "", buf, sizeof buf, ini.c_str())) g_mirrorFill = buf[0] != '0';
 	if (GetPrivateProfileStringA("VR", "MirrorZoom", "", buf, sizeof buf, ini.c_str())) g_mirrorZoom = std::max(0.5f, std::min(2.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "DumpEyes", "", buf, sizeof buf, ini.c_str())) g_dumpEyes = buf[0] == '1';
+	if (GetPrivateProfileStringA("VR", "DumpEyesStart", "", buf, sizeof buf, ini.c_str())) g_dumpStart = std::max(1, atoi(buf));
+	if (GetPrivateProfileStringA("VR", "DumpEyesStep", "", buf, sizeof buf, ini.c_str())) g_dumpStep = std::max(1, atoi(buf));
 	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b'; if (g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
 	if (GetPrivateProfileStringA("VR", "PanelDistance", "", buf, sizeof buf, ini.c_str())) g_panelDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenDistance", "", buf, sizeof buf, ini.c_str())) g_screenDist = std::max(0.5f, std::min(10.0f, (float)atof(buf)));
@@ -1343,7 +1346,7 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 			while (q->GetData(nullptr, 0, D3DGETDATA_FLUSH) == S_FALSE) SwitchToThread();
 		}
 		g_tRead += Now() - t0;
-		if (g_dumpEyes && g_frames >= 400 && (g_frames - 400) % 300 == 0 && g_frames <= 400 + 300 * 11)
+		if (g_dumpEyes && g_frames >= g_dumpStart && (g_frames - g_dumpStart) % g_dumpStep == 0 && g_frames <= g_dumpStart + g_dumpStep * 11)
 		{
 			// read back what D3D11 actually sees through the share
 			for (int e = 0; e < 2; e++)
@@ -1360,8 +1363,8 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 					{
 						D3DLOCKED_RECT lr; lr.pBits = m.pData; lr.Pitch = (INT)m.RowPitch;
 						char nm[64];
-						if (g_frames == 400) snprintf(nm, sizeof nm, "UT2004VR_eye%d.bmp", e);
-						else snprintf(nm, sizeof nm, "UT2004VR_eye%d_%02u.bmp", e, (g_frames - 400) / 300);
+						if (g_frames == g_dumpStart) snprintf(nm, sizeof nm, "UT2004VR_eye%d.bmp", e);
+						else snprintf(nm, sizeof nm, "UT2004VR_eye%d_%02u.bmp", e, (g_frames - g_dumpStart) / g_dumpStep);
 						DumpBMP(nm, lr, d.Width);
 						g_ctx->Unmap(st, 0);
 					}

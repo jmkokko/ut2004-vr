@@ -250,6 +250,15 @@ simulated function DisplayHit(vector HitDir, int Damage, class<DamageType> damag
 
 // a teammate's voice message (TeamVoicePack) or chat (Message, via HudCDeathMatch) shows the speaker's portrait:
 // UT tells this HUD, the game type's HUD beside it draws the portrait into the captured layer
+// the announcer's events: Assault's HUD highlights the current objective and shows the way there (the trail)
+event AnnouncementPlayed(Name AnnouncerSound, byte Switch)
+{
+	Super.AnnouncementPlayed(AnnouncerSound, Switch);
+	if ( Shadow != None )
+		Shadow.AnnouncementPlayed(AnnouncerSound, Switch);
+	Log("UT2004VR: announcement "$AnnouncerSound$" ("$Switch$") passed to "$Shadow, 'UT2004VR');
+}
+
 simulated function DisplayPortrait(PlayerReplicationInfo PRI)
 {
 	Super.DisplayPortrait(PRI);
