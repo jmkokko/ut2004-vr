@@ -98,6 +98,7 @@ var config float BehindDistance;    // behind view on foot (F): the camera this 
 var config float BehindHeight;      // ...and this far above your eyes (m)...
 var config float BehindRight;       // ...and this far to the right (m; over the shoulder, so the gun and laser show)
 var bool     bTPGun;                // behind view: the gun hangs in the character's hand (UT's attachment)
+var config float FighterSteer;      // controller mode: right stick -> Assault space fighter pitch / yaw rate, as the mouse (negative: inverted pitch)
 var config float RedeemerSteer;     // controller mode: right stick -> guided Redeemer turn rate (negative: inverted pitch)
 var config bool  bRedeemerRoll;     // ride the warhead's banking too (off: the horizon only pitches and turns)
 var config bool  bRedeemerWindow;   // ride behind a round window at the warhead's tip (2D's scope overlay, in 3D)
@@ -444,7 +445,7 @@ event PlayerTick(float DeltaTime)
 			HeightOffset = GameEyeMeters() - SlowHeadZ;
 		}
 	}
-	if ( TestExec != "" && !bTestExecDone && Level.TimeSeconds > 3 && ((Pawn != None && Pawn.Weapon != None) || IsVRSpectating()) )
+	if ( TestExec != "" && !bTestExecDone && Level.TimeSeconds > 3 && ((Pawn != None && (Pawn.Weapon != None || Vehicle(Pawn) != None)) || IsVRSpectating()) )
 	{
 		bTestExecDone = true;
 		// a step that started a new level: carry on with the rest there (class defaults outlive the level)
@@ -2577,34 +2578,67 @@ function float StickAxis(float V)
 	return (V + 0.15) / 0.85;
 }
 
+// controller mode in a vehicle: the left stick drives (forward / back) and steers (left / right; hovering and flying
+// vehicles strafe), as W/S and A/D do; the left trigger (dodge) jumps or rises, the grip (crouch) ducks or descends,
+// as Space and C do (a space fighter: trigger + stick left / right rolls, the grip levels the wings)
+function VRStickDrive()
+{
+	if ( Level.TimeSeconds < DebugStickUntil )
+	{
+		StickMX = DebugStickX;
+		StickMY = DebugStickY;
+	}
+	aForward = StickAxis(StickMY) * 6000;
+	aStrafe = StickAxis(StickMX) * 6000;
+	aUp = 0;
+	if ( bBtnDodge )
+		aUp = 6000;
+	else if ( bBtnCrouch )
+		aUp = -6000;
+	if ( bBtnCrouch )
+		bDuck = 1;
+	else
+		bDuck = 0;
+	if ( bBtnDodge && !bOldVehDodge )
+		bPressedJump = true;
+	bOldVehDodge = bBtnDodge;
+	if ( bDebugLog && (aForward != 0 || aStrafe != 0 || aUp != 0) && Level.TimeSeconds > NextCrossLog )
+	{
+		NextCrossLog = Level.TimeSeconds + 0.5;
+		Log("UT2004VR: drive stick "$StickMX$","$StickMY$" -> forward "$aForward$" strafe "$aStrafe$" up "$aUp, 'UT2004VR');
+	}
+}
+
 state PlayerDriving
 {
 	function PlayerMove(float DeltaTime)
 	{
-		// controller mode: the left stick drives (forward / back) and steers (left / right; hovering and flying
-		// vehicles strafe), as W/S and A/D do; the left trigger (dodge) jumps or rises, the grip (crouch) ducks or
-		// descends, as Space and C do
+		if ( VRActive() && !bKeyboardMouse && Vehicle(Pawn) != None )
+			VRStickDrive();
+		Super.PlayerMove(DeltaTime);
+	}
+}
+
+// Assault's space fighters: the left stick is the throttle (forward / back) and strafes, the right stick pitches
+// and yaws as the mouse does (FighterSteer); A / B pick the next / previous target, the trigger and grip fire
+state PlayerSpaceFlying
+{
+	function PlayerMove(float DeltaTime)
+	{
 		if ( VRActive() && !bKeyboardMouse && Vehicle(Pawn) != None )
 		{
+			VRStickDrive();
 			if ( Level.TimeSeconds < DebugStickUntil )
 			{
-				StickMX = DebugStickX;
-				StickMY = DebugStickY;
+				StickTX = DebugStickX;
+				StickTY = DebugStickY;
 			}
-			aForward = StickAxis(StickMY) * 6000;
-			aStrafe = StickAxis(StickMX) * 6000;
-			aUp = 0;
-			if ( bBtnDodge )
-				aUp = 6000;
-			else if ( bBtnCrouch )
-				aUp = -6000;
-			if ( bBtnDodge && !bOldVehDodge )
-				bPressedJump = true;
-			bOldVehDodge = bBtnDodge;
-			if ( bDebugLog && (aForward != 0 || aStrafe != 0 || aUp != 0) && Level.TimeSeconds > NextCrossLog )
+			aTurn += StickAxis(StickTX) * Abs(FighterSteer);
+			aLookUp += StickAxis(StickTY) * FighterSteer;
+			if ( bDebugLog && (StickTX != 0 || StickTY != 0) && Level.TimeSeconds > NextCineLog )
 			{
-				NextCrossLog = Level.TimeSeconds + 0.5;
-				Log("UT2004VR: drive stick "$StickMX$","$StickMY$" -> forward "$aForward$" strafe "$aStrafe$" up "$aUp, 'UT2004VR');
+				NextCineLog = Level.TimeSeconds + 0.5;
+				Log("UT2004VR: fighter steer stick "$StickTX$","$StickTY$" -> aTurn "$aTurn$" aLookUp "$aLookUp$" rot "$Pawn.Rotation, 'UT2004VR');
 			}
 		}
 		Super.PlayerMove(DeltaTime);
@@ -4872,6 +4906,7 @@ defaultproperties
 	VehicleBehindPitch=12
 	VehicleBehindScale=1.0
 	InstantTurretSpeed=0
+	FighterSteer=2000
 	RedeemerSteer=2000
 	BehindDistance=1.8
 	BehindHeight=0.45

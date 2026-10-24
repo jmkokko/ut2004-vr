@@ -35,6 +35,11 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Left trigger / left grip | Jump or rise (Manta, Raptor) / duck or descend |
 | Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |
 | Right trigger / grip | Fire / alt-fire |
+| **In a space fighter** (Assault) | |
+| Left stick | Throttle (forward / back) and strafe |
+| Left trigger + left stick left/right | Roll; left grip levels the wings |
+| Right stick | Pitch and yaw, as the mouse does (`FighterSteer=2000`; negative inverts the pitch) |
+| Right A / B | Next / previous target |
 
 Index uses left B for the menu and left A for the scoreboard. WMR uses the left menu button and the left touchpad click, with the right touchpad for next weapon and the right menu button for previous weapon. Vive has no scoreboard button. Remap anything in SteamVR's Controller Bindings while the game runs. The cycle of A/B includes the Redeemer and Ion Painter.
 

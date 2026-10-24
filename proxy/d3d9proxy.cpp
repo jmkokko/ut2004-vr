@@ -98,7 +98,7 @@ static bool g_mockGun = false;
 static bool g_mockSeated = false;
 static bool g_mockHeading = false;
 static bool g_mockJump = false;
-static bool g_mockJoin = false;      // MockDemo=b: still head; the trigger pressed at ~frames 400 and 900 to join the match, no other input
+static bool g_mockJoin = false;      // MockDemo=b: still head; the trigger pressed every 500 frames (skips an intro, joins the match), no other input
 static bool g_mockBehind = false;    // MockDemo=a: the main menus' panel placed while the headset lay on the desk; 2 s later it is on, facing 120 deg to one side
 static bool g_mockLookAway = false;  // MockDemo=9: worn, head straight (the menu comes up), then 40 deg, then 55 deg to one side
 static bool g_mockCrouch = false;  // MockDemo=8: accidental vs deliberate crouch click, then jump out of crouch    // MockDemo=7: jump, then jump again at the apex (double jump) // MockDemo=6: look 60 deg right, then walk forward, then dodge L/R  // MockDemo=5: still, seated head that rises 20 cm     // MockDemo=4: still head, hand aiming forward, scripted fire // MockDemo=3: like 2, head pitched 20 and rolled 15  // MockDemo=2: head still, headset-sized window (projection calibration)   // MockDemo=1: scripted stick input in mock mode
@@ -1569,7 +1569,7 @@ static void AfterPresent(UINT bbW, UINT bbH)
 			Send("I 0 %.1f 0 0 %d %d 0 0 0 0 0 0 0", fw, jp, cr);
 		}
 		else if (g_mockJoin)
-			Send("I 0 0 0 0 0 0 0 %d 0 0 0", ((g_frames >= 400 && g_frames < 406) || (g_frames >= 900 && g_frames < 906)) ? 1 : 0);
+			Send("I 0 0 0 0 0 0 0 %d 0 0 0", (g_frames >= 400 && g_frames % 500 < 6) ? 1 : 0);
 		else if (g_mockJump)
 		{
 			int j = ((g_frames >= 600 && g_frames < 604) || (g_frames >= 632 && g_frames < 636)) ? 1 : 0;
