@@ -488,6 +488,31 @@ event PlayerTick(float DeltaTime)
 }
 
 // the stock first-person eye height above the floor, in meters (xPawn: CollisionHeight 44 + BaseEyeHeight 38)
+// debug: the eyes' height above the floor
+exec function VREyeLog()
+{
+	Log("UT2004VR: eyes at "$VRHeadWorld$" above floor "$FloorBelow(VRHeadWorld)$" state "$GetStateName()$" head "$HeadPos$" offset "$HeightOffset, 'UT2004VR');
+}
+
+// debug: how far above the floor a point is (uu; -1 if none within 1000)
+simulated function float FloorBelow(vector P)
+{
+	local vector HL, HN;
+	if ( Trace(HL, HN, P - vect(0,0,1000), P, false) == None )
+		return -1;
+	return P.Z - HL.Z;
+}
+
+// the waiting / own-camera spectator view: up from a body's centre to its eyes, as in the match
+simulated function float WaitEyeRaise()
+{
+	local class<Pawn> PC;
+	PC = PawnClass;
+	if ( PC == None )
+		PC = class'VRPawn';
+	return PC.default.BaseEyeHeight + EyeHeightBonus;
+}
+
 simulated function float GameEyeMeters()
 {
 	local class<Pawn> PC;
@@ -2911,6 +2936,12 @@ event PlayerCalcView(out actor ViewActor, out vector CameraLocation, out rotator
 	if ( !VRActive() || Pawn == None || ViewTarget != Pawn || (bBehindView && Vehicle(Pawn) == None) )
 	{
 		Super.PlayerCalcView(ViewActor, CameraLocation, CameraRotation);
+		// waiting for the match (or spectating on your own camera): UT's camera is the controller at the start
+		// spot, where a body's centre would be; in the match your eyes are BaseEyeHeight above that, so the
+		// waiting view was lower than the game's. Raised to the same eye height.
+		if ( VRActive() && Pawn == None && ViewTarget == self && !bInterpolating && !bViewingMatineeCinematic
+			&& (IsInState('PlayerWaiting') || IsInState('Spectating')) )
+			CameraLocation.Z += WaitEyeRaise();
 		if ( IsFreeView() )
 		{
 			// the desktop shows UT's camera (cinematic, waiting, spectating): the eyes go there too
@@ -2920,7 +2951,7 @@ event PlayerCalcView(out actor ViewActor, out vector CameraLocation, out rotator
 			if ( bDebugLog && Level.TimeSeconds > NextCineLog )
 			{
 				NextCineLog = Level.TimeSeconds + 1.0;
-				Log("UT2004VR: cinematic camera "$CameraLocation$" rot "$CameraRotation$" eyes at "$VRHeadWorld$" rot "$VRHeadRot$" anchor "$CineAnchor$" head "$HeadPos$" anchored "$bCineAnchored, 'UT2004VR');
+				Log("UT2004VR: cinematic camera "$CameraLocation$" rot "$CameraRotation$" eyes at "$VRHeadWorld$" rot "$VRHeadRot$" anchor "$CineAnchor$" head "$HeadPos$" anchored "$bCineAnchored$" above floor "$FloorBelow(VRHeadWorld), 'UT2004VR');
 
 			}
 		}
