@@ -103,6 +103,7 @@ var config float BehindDistance;    // behind view on foot (F): the camera this 
 var config float BehindHeight;      // ...and this far above your eyes (m)...
 var config float BehindRight;       // ...and this far to the right (m; over the shoulder, so the gun and laser show)
 var bool     bTPGun;                // behind view: the gun hangs in the character's hand (UT's attachment)
+var config float VehicleTurnDegPerSec;   // controller mode: the right stick left / right turns Manta, Raptor and Cicada (the vehicles that face your view) this fast
 var config float FighterInertia;    // controller mode: seconds the fighter takes to wind up / settle a turn from the stick (0 = instant)
 var float FighterTX, FighterTY;      // the eased stick
 var config float FighterSteer;      // controller mode: right stick -> Assault space fighter pitch / yaw rate, as the mouse (negative: inverted pitch)
@@ -2821,7 +2822,22 @@ state PlayerDriving
 	function PlayerMove(float DeltaTime)
 	{
 		if ( VRActive() && !bKeyboardMouse && Vehicle(Pawn) != None )
+		{
 			VRStickDrive();
+			// Manta, Raptor, Cicada turn toward the view (bFollowLookDir): the right stick turns the view's heading
+			// (VehViewYaw), and they follow it, as the mouse does in 2D
+			if ( Vehicle(Pawn).bFollowLookDir && ONSWeaponPawn(Pawn) == None && VehicleTurnDegPerSec > 0 )
+			{
+				if ( Level.TimeSeconds < DebugStickUntil )
+					StickTX = DebugStickX;
+				VehViewYaw += StickAxis(StickTX) * VehicleTurnDegPerSec * 65536.0 / 360.0 * DeltaTime;
+				if ( bDebugLog && StickTX != 0 && Level.TimeSeconds > NextCineLog )
+				{
+					NextCineLog = Level.TimeSeconds + 0.5;
+					Log("UT2004VR: vehicle turn stick "$StickTX$" view yaw "$int(VehViewYaw)$" vehicle yaw "$Pawn.Rotation.Yaw, 'UT2004VR');
+				}
+			}
+		}
 		Super.PlayerMove(DeltaTime);
 	}
 }
@@ -5217,6 +5233,7 @@ defaultproperties
 	InstantTurretSpeed=0
 	FighterSteer=2000
 	FighterInertia=0
+	VehicleTurnDegPerSec=120
 	RedeemerSteer=2000
 	BehindDistance=1.8
 	BehindHeight=0.45
