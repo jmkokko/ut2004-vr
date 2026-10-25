@@ -99,6 +99,7 @@ static bool g_mockGun = false;
 static bool g_mockSeated = false;
 static bool g_mockHeading = false;
 static bool g_mockJump = false;
+static bool g_mockSitDown = false;   // MockDemo=c: worn, standing 45 cm off to one side, then sitting down at the desk (frame 1200; in the main menus 2 s after the panel is placed)
 static bool g_mockJoin = false;      // MockDemo=b: still head; the trigger pressed every 500 frames (skips an intro, joins the match), no other input
 static bool g_mockBehind = false;    // MockDemo=a: the main menus' panel placed while the headset lay on the desk; 2 s later it is on, facing 120 deg to one side
 static bool g_mockLookAway = false;  // MockDemo=9: worn, head straight (the menu comes up), then 40 deg, then 55 deg to one side
@@ -122,7 +123,7 @@ static void ReadConfig()
 	if (GetPrivateProfileStringA("VR", "DumpEyes", "", buf, sizeof buf, ini.c_str())) g_dumpEyes = buf[0] == '1';
 	if (GetPrivateProfileStringA("VR", "DumpEyesStart", "", buf, sizeof buf, ini.c_str())) g_dumpStart = std::max(1, atoi(buf));
 	if (GetPrivateProfileStringA("VR", "DumpEyesStep", "", buf, sizeof buf, ini.c_str())) g_dumpStep = std::max(1, atoi(buf));
-	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b'; if (g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
+	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b'; g_mockSitDown = buf[0] == 'c'; if (g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSitDown || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
 	if (GetPrivateProfileStringA("VR", "PanelDistance", "", buf, sizeof buf, ini.c_str())) g_panelDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenDistance", "", buf, sizeof buf, ini.c_str())) g_screenDist = std::max(0.5f, std::min(10.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenWidth", "", buf, sizeof buf, ini.c_str())) g_screenWidth = std::max(0.4f, std::min(10.0f, (float)atof(buf)));
@@ -591,8 +592,10 @@ static void PlacePanel(bool bSeated = false)
 {
 	// the direction from the seated calibration; the position from your head once you wear the headset (the
 	// calibration's own position can be half a metre off and well below your head)
+	// (only while the headset isn't on: worn, your head's heading is where you sit - the calibration was 75-107 deg
+	// off how the user sits, and a menu placed by it came up off to the side)
 	vr::HmdMatrix34_t sm;
-	g_panelSeated = bSeated && SeatedPose(sm);
+	g_panelSeated = bSeated && !g_worn && SeatedPose(sm);
 	const vr::HmdMatrix34_t& m = g_panelSeated ? sm : g_renderPose;
 	const vr::HmdMatrix34_t& at = (g_panelSeated && !g_worn) ? sm : g_renderPose;
 	if (g_panelSeated) Log("panel facing the seated calibration, at the %s", g_worn ? "head" : "calibration (headset not worn)");
@@ -1253,8 +1256,10 @@ static void SubmitFrame(IDirect3DDevice9* dev)
 			float dx = g_renderPose.m[0][3] - g_panelHead[0], dy = g_renderPose.m[1][3] - g_panelHead[1], dz = g_renderPose.m[2][3] - g_panelHead[2];
 			if (dx * dx + dy * dy + dz * dz > 0.3f * 0.3f)
 			{
-				Log("head moved %.2f m since the panel was placed: placing it again", sqrtf(dx * dx + dy * dy + dz * dz));
-				g_panelPlaced = false;
+				// it moves with you, facing the same way (placed again from where you looked then, it swung aside)
+				Log("head moved %.2f m since the panel was placed: moving it with you", sqrtf(dx * dx + dy * dy + dz * dz));
+				float d[3] = { dx, dy, dz };
+				for (int k = 0; k < 3; k++) { g_pC[k] += d[k]; g_pO[k] += d[k]; g_panelHead[k] = g_renderPose.m[k][3]; }
 			}
 		}
 		// the main menus: until you have looked at the panel once, holding your gaze still well away from it (60 deg,
@@ -1514,7 +1519,8 @@ static void AfterPresent(UINT bbW, UINT bbH)
 		float t = GetTickCount() / 1000.0f;
 		float yaw = g_mockDemo2 ? 0.0f : 0.35f * sinf(t * 0.5f);
 		V3 p{ 0, 0, 1.70f }, f{ cosf(yaw), sinf(yaw), 0 }, u{ 0, 0, 1 };
-		if (g_mockSeated) p.z = g_frames < 1500 ? 1.10f : 1.30f;   // MockDemo=5: seated, sits up 20 cm after ~17 s
+		if (g_mockSeated) p.z = g_frames < 1500 ? 1.10f : 1.30f;
+		if (g_mockSitDown) { static double placedAt = 0; if (g_panelPlaced && placedAt == 0) placedAt = Now(); g_worn = true; bool sat = g_frames >= 1200 && (!g_menuOpen || (placedAt > 0 && Now() - placedAt > 2000)); p = sat ? V3{ 0, 0, 1.15f } : V3{ 0.10f, 0.42f, 1.52f }; }   // MockDemo=5: seated, sits up 20 cm after ~17 s
 		if (g_mockLookAway)
 		{
 			g_worn = true;

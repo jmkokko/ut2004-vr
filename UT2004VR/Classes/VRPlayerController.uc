@@ -112,6 +112,8 @@ var bool     bChairFromGaze;
 var bool     bSpecFireHeld, bSpecAltHeld;   // spectating: the buttons last tick
 var float    SpecSwitchTime, TapFireUntil;           // the next chair forward comes from the gaze (recenter), not the seated calibration
 var bool     bCinePosWorn;
+var vector   CineRestPos;   // the free view: where the head last came to rest, and since when
+var float    CineRestSince;
 var int      CineYawSrc;   // the free view's heading: 0 the headset at startup, 1 the seated calibration, 2 your head once worn, 3 your chair
 var float    CineWaitStart;
 var int      TurretEntryYaw;
@@ -1331,6 +1333,23 @@ simulated function UpdateHeadWorld()
 			bCinePosWorn = true;
 			CineAnchor = HeadPos;
 			Log("UT2004VR: free view: headset on, anchored at your head "$HeadPos, 'UT2004VR');
+		}
+		// anchored while you were still putting the headset on or sitting down (WMR reports it worn while it moves
+		// to your head): once your head rests 30 cm or more from the anchor for a second, the view is centred there
+		// again (the user: the intro came up in front, then a second later slid about 20 deg aside - the anchor was
+		// 45 cm from where the head settled)
+		if ( bCineAnchored )
+		{
+			if ( VSize(HeadPos - CineRestPos) > 0.05 )
+			{
+				CineRestPos = HeadPos;
+				CineRestSince = Level.TimeSeconds;
+			}
+			else if ( Level.TimeSeconds - CineRestSince > 1.0 && VSize(HeadPos - CineAnchor) > 0.3 )
+			{
+				Log("UT2004VR: free view: your head rests "$VSize(HeadPos - CineAnchor)$" m from the anchor: centred there", 'UT2004VR');
+				CineAnchor = HeadPos;
+			}
 		}
 		if ( bCineAnchored )
 			CineYawFrom();
