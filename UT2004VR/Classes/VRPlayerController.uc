@@ -1425,6 +1425,19 @@ simulated function UpdateHeadWorld()
 			Log("UT2004VR: in vehicle "$LastVehicle.Class.Name$" camera "$LastVehicle.FPCamPos$" +view "$LastVehicle.FPCamViewOffset$" mesh in FP "$LastVehicle.bDrawMeshInFP$" collision "$LastVehicle.CollisionRadius$"/"$LastVehicle.CollisionHeight$" relative aim "$LastVehicle.bPCRelativeFPRotation, 'UT2004VR');
 		}
 		RefR.Yaw = VehRefYaw;
+		// Assault's space fighters pitch and roll all the way round: you sit in the cockpit and turn with it fully
+		// (yaw only, the ship spun around you, the user: "as if he was not attached to it"); your head looks
+		// around inside it. UT's own camera: FPCamPos in the fighter's true rotation (GetViewRotation).
+		if ( ASVehicle_SpaceFighter(Pawn) != None && !bBehindView )
+		{
+			CamR = ASVehicle_SpaceFighter(Pawn).GetViewRotation();
+			VRHeadWorld = Pawn.Location + ((LastVehicle.FPCamPos + SeatOffsetFor(LastVehicle)) >> CamR)
+				+ ((((HeadPos - VehAnchor) * UUPerMeter) << RefR) >> CamR);
+			F = (HeadF << RefR) >> CamR;
+			U = (HeadU << RefR) >> CamR;
+			VRHeadRot = FrameRot(F, U);
+			return;
+		}
 		CamR.Yaw = VehicleViewYaw();
 		// UT's first-person camera: FPCamPos in the vehicle's frame, then FPCamViewOffset along the view (the
 		// Goliath's camera is 90 uu ahead of its pivot); here along the vehicle's heading, so the eyes don't swing
@@ -2685,7 +2698,7 @@ state PlayerSpaceFlying
 			if ( bDebugLog && (StickTX != 0 || StickTY != 0) && Level.TimeSeconds > NextCineLog )
 			{
 				NextCineLog = Level.TimeSeconds + 0.5;
-				Log("UT2004VR: fighter steer stick "$StickTX$","$StickTY$" -> aTurn "$aTurn$" aLookUp "$aLookUp$" rot "$Pawn.Rotation, 'UT2004VR');
+				Log("UT2004VR: fighter steer stick "$StickTX$","$StickTY$" -> aTurn "$aTurn$" aLookUp "$aLookUp$" rot "$Pawn.Rotation$" view "$ASVehicle_SpaceFighter(Pawn).GetViewRotation()$" eyes "$VRHeadRot, 'UT2004VR');
 			}
 		}
 		Super.PlayerMove(DeltaTime);
