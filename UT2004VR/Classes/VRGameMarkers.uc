@@ -10,6 +10,7 @@ class VRGameMarkers extends Object;
 
 var TexRotator Arrows[8];           // the out-of-view arrows (one per objective drawn this eye)
 var int ArrowCount;
+var float NextAimLog;               // debug: DrawONSCrosshair's log
 
 // the HUD's ResScale for the HUD layer (a virtual 16:9 screen as wide as the layer, in this eye's pixels)
 static function float LayerRes(VRPlayerController PC, ScriptedTexture Tex)
@@ -208,8 +209,16 @@ function DrawONSCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex,
 	local color C;
 	local ONSVehicle OV;
 	local ONSWeaponPawn WP;
+	local bool bTraced, bSeen;
 
-	if ( !PC.VehicleAimTrace(Start, Dir, HL, W, bHit) || !InView(PC, Tex, HL, Loc, Rot, PX, PY) )
+	bTraced = PC.VehicleAimTrace(Start, Dir, HL, W, bHit);
+	bSeen = bTraced && InView(PC, Tex, HL, Loc, Rot, PX, PY);
+	if ( PC.bDebugLog && PC.Level.TimeSeconds > NextAimLog )
+	{
+		NextAimLog = PC.Level.TimeSeconds + 1.0;
+		Log("UT2004VR: ons crosshair "$PC.Pawn.Class.Name$" gun "$W$" traced "$bTraced$" in view "$bSeen$" at "$int(PX)$","$int(PY)$" of "$Tex.USize$" muzzle "$Start$" aim "$rotator(Dir)$" eyes "$PC.VRHeadWorld$" gaze "$PC.VRHeadRot$" hit "$bHit$" "$int(VSize(HL - Start))$" uu crosshair "$PC.myHUD.bCrosshairShow$" correct "$(W != None && W.bCorrectAim), 'UT2004VR');
+	}
+	if ( !bSeen )
 		return;
 	RS = LayerRes(PC, Tex);
 	// UT's crosshair (HUD.CrosshairStyle from the player's settings; Settings' "show crosshair" is the active HUD's)

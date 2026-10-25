@@ -4577,7 +4577,8 @@ function ONSWeapon VehicleGun()
 function bool VehicleAimTrace(out vector Start, out vector Dir, out vector HitL, out ONSWeapon W, out byte bHit)
 {
 	local Actor A;
-	local vector End, HitN, S;
+	local Vehicle B;
+	local vector End, HitN, S, P;
 	local float Range;
 	local int i;
 
@@ -4602,6 +4603,19 @@ function bool VehicleAimTrace(out vector Start, out vector Dir, out vector HitL,
 	HitL = End;
 	bHit = 0;
 	S = Start;
+	// a gun inside its own vehicle's collision (the Cicada's belly turret): the trace hit the hull from inside at
+	// once, every time, and the crosshair sat 23 uu ahead of the muzzle (behind your eyes). Start where the aim line
+	// leaves the vehicle: traced back toward the muzzle against the vehicle alone.
+	B = Vehicle(Pawn);
+	if ( ONSWeaponPawn(Pawn) != None && ONSWeaponPawn(Pawn).VehicleBase != None )
+		B = ONSWeaponPawn(Pawn).VehicleBase;
+	if ( B != None )
+	{
+		P = Start + Dir * (B.CollisionRadius + B.CollisionHeight) * 2;
+		if ( !B.TraceThisActor(HitL, HitN, Start, P) )
+			S = HitL + Dir * 4;
+		HitL = End;
+	}
 	// skip your own vehicle and the guns bolted onto it
 	for ( i = 0; i < 4; i++ )
 	{
