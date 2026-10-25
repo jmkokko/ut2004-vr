@@ -55,4 +55,8 @@ defaultproperties
 {
 	VehSeats(0)=(Vehicle="ONSAttackCraft",Offset=(X=0,Y=0,Z=0),bShowMesh=true)
 	VehSeats(1)=(Vehicle="ONSHoverBike",Offset=(X=0,Y=0,Z=0),bShowMesh=true)
+	// the user: the Lightning Gun's lens sat at hand level (raised 8 cm), the Sniper Rifle's too far back, at
+	// your face (15 cm forward); the rest keep ScopeOffset
+	Scopes(0)=(Gun="SniperRifle",Offset=(X=0.04,Y=0,Z=0.15))
+	Scopes(1)=(Gun="ClassicSniperRifle",Offset=(X=0.17,Y=0,Z=0.07))
 }
