@@ -98,6 +98,8 @@ var config float BehindDistance;    // behind view on foot (F): the camera this 
 var config float BehindHeight;      // ...and this far above your eyes (m)...
 var config float BehindRight;       // ...and this far to the right (m; over the shoulder, so the gun and laser show)
 var bool     bTPGun;                // behind view: the gun hangs in the character's hand (UT's attachment)
+var config float FighterInertia;    // controller mode: seconds the fighter takes to wind up / settle a turn from the stick (0 = instant)
+var float FighterTX, FighterTY;      // the eased stick
 var config float FighterSteer;      // controller mode: right stick -> Assault space fighter pitch / yaw rate, as the mouse (negative: inverted pitch)
 var config float RedeemerSteer;     // controller mode: right stick -> guided Redeemer turn rate (negative: inverted pitch)
 var config bool  bRedeemerRoll;     // ride the warhead's banking too (off: the horizon only pitches and turns)
@@ -2693,8 +2695,20 @@ state PlayerSpaceFlying
 				StickTX = DebugStickX;
 				StickTY = DebugStickY;
 			}
-			aTurn += StickAxis(StickTX) * Abs(FighterSteer);
-			aLookUp += StickAxis(StickTY) * FighterSteer;
+			// eased: the ship winds up into a turn and swings on a moment after you let go, as with the mouse
+			// (the stick alone started and stopped it at once)
+			if ( FighterInertia > 0 )
+			{
+				FighterTX += (StickAxis(StickTX) - FighterTX) * FMin(1, DeltaTime / FighterInertia);
+				FighterTY += (StickAxis(StickTY) - FighterTY) * FMin(1, DeltaTime / FighterInertia);
+			}
+			else
+			{
+				FighterTX = StickAxis(StickTX);
+				FighterTY = StickAxis(StickTY);
+			}
+			aTurn += FighterTX * Abs(FighterSteer);
+			aLookUp += FighterTY * FighterSteer;
 			if ( bDebugLog && (StickTX != 0 || StickTY != 0) && Level.TimeSeconds > NextCineLog )
 			{
 				NextCineLog = Level.TimeSeconds + 0.5;
@@ -4987,6 +5001,7 @@ defaultproperties
 	VehicleBehindScale=1.0
 	InstantTurretSpeed=0
 	FighterSteer=2000
+	FighterInertia=0.35
 	RedeemerSteer=2000
 	BehindDistance=1.8
 	BehindHeight=0.45
