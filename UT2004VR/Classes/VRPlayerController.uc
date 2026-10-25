@@ -5001,7 +5001,7 @@ defaultproperties
 	VehicleBehindScale=1.0
 	InstantTurretSpeed=0
 	FighterSteer=2000
-	FighterInertia=0.35
+	FighterInertia=0
 	RedeemerSteer=2000
 	BehindDistance=1.8
 	BehindHeight=0.45
