@@ -43,6 +43,9 @@ var config float SteerMaxDegPerSec;
 var int   ChairYaw;                 // playspace yaw of the chair's forward (set at calibration / recenter)
 var int   ChairPitch;               // your natural head pitch at that moment = "level" in keyboard/mouse mode
 var int   ChairCount;
+var float ChairHist[36];           // where you look (level gaze, 10 deg bins), seconds, fading over ChairHistLife
+var float ChairHistAt, ChairCheckAt;
+var config float ChairHistLife;     // s: how long a look counts toward your chair's forward
 var bool  bChairMeasured;           // chair forward/pitch taken (first calibration, or recenter); respawns keep it
 var bool  bChairYawValid;
 var config bool  bSmoothTurn;
@@ -1020,6 +1023,11 @@ function VRPacket(string Text)
 				Log("UT2004VR: chair forward yaw "$ChairYaw$" ("$Src$") pitch "$ChairPitch$" (level gaze)", 'UT2004VR');
 			}
 		}
+		// and kept right afterwards: where you look most of the time is where you sit. Measured once, it could
+		// come from a look around while waiting to spawn - 44 deg off, and walking straight ahead turned you
+		// left all the time (seated head steering is relative to it). Glances aside, to steer, are short.
+		if ( LastHeadMotion > 0 && Level.TimeSeconds - LastHeadMotion < 20 && Abs(Normal(HeadF).Z) < 0.17 )
+			TrackChair();
 		if ( bNeedHeight && bAutoHeight && WornTime > 2.0 && CalibCount > 0 )
 		{
 			HeadPos.Z = CalibSum / CalibCount;
@@ -4779,8 +4787,63 @@ function DrawCalibTex(ScriptedTexture Tex, vector Loc, rotator Rot)
 }
 
 // Alyx-style recenter: re-measure height and face the open direction again
+// the chair's forward, kept: a histogram of your level gaze, fading over ChairHistLife; once a second, if its peak
+// (with the bins beside it) has 20 s of looking and lies more than 4 deg from the chair, the chair turns to it
+// over a few seconds
+function TrackChair()
+{
+	local int i, b, Best, k;
+	local float Dt, Fade, W, BestW, Sum, Ang, Diff, Step;
+	local rotator R;
+
+	Dt = FClamp(Level.TimeSeconds - ChairHistAt, 0, 0.1);
+	ChairHistAt = Level.TimeSeconds;
+	if ( Dt <= 0 || ChairHistLife <= 0 )
+		return;
+	R = rotator(HeadF);
+	b = ((R.Yaw & 65535) * 36) / 65536;
+	Fade = Exp(-Dt / ChairHistLife);
+	for ( i = 0; i < 36; i++ )
+		ChairHist[i] *= Fade;
+	ChairHist[Clamp(b, 0, 35)] += Dt;
+	if ( !bChairMeasured || Level.TimeSeconds < ChairCheckAt )
+		return;
+	ChairCheckAt = Level.TimeSeconds + 1.0;
+	Best = -1;
+	for ( i = 0; i < 36; i++ )
+	{
+		W = ChairHist[(i + 35) % 36] + ChairHist[i] + ChairHist[(i + 1) % 36];
+		if ( W > BestW )
+		{
+			BestW = W;
+			Best = i;
+		}
+	}
+	if ( Best < 0 || BestW < 20 )
+		return;
+	// the peak's angle: the weighted mean of its three bins (degrees, around the middle one)
+	for ( k = -1; k <= 1; k++ )
+	{
+		Sum += ChairHist[(Best + k + 36) % 36];
+		Ang += ChairHist[(Best + k + 36) % 36] * k * 10;
+	}
+	Ang = Best * 10 + 5 + Ang / Sum;
+	Diff = Ang - (ChairYaw & 65535) * 360.0 / 65536.0;
+	while ( Diff > 180 ) Diff -= 360;
+	while ( Diff < -180 ) Diff += 360;
+	// (within the steering dead zone, SteerDeadzone=8: a chair left 10 deg off still turned you slowly)
+	if ( Abs(Diff) <= 4 )
+		return;
+	// a quarter of the way each second (about five seconds to settle): no sudden turn under your feet
+	Step = Diff * 0.25;
+	ChairYaw += int(Step * 65536.0 / 360.0);
+	Log("UT2004VR: chair forward follows where you look most ("$int(Diff)$" deg off, "$int(BestW)$" s): now yaw "$ChairYaw, 'UT2004VR');
+}
+
 exec function VRRecenter()
 {
+	local int i;
+
 	bNeedHeight = true;
 	bForceHeight = true;
 	WornTime = 1.0;
@@ -4789,6 +4852,8 @@ exec function VRRecenter()
 	CalibFwdSum = vect(0,0,0);
 	ChairCount = 0;
 	bChairMeasured = false;   // recenter: take the chair forward and pitch again
+	for ( i = 0; i < 36; i++ )
+		ChairHist[i] = 0;
 	bChairFromGaze = true;    // ... from where you look now, not the seated calibration
 	bNeedSpawnFacing = true;
 	bAnchorValid = false;
@@ -4929,6 +4994,7 @@ defaultproperties
 	GunLagTime=0.12
 	GunLagMax=0.015
 	GunLagSmooth=0.15
+	ChairHistLife=60
 	RecoilScale=1.0
 	RecoilReturn=0.22
 	Recoils(0)=(Fire="ZoomSuperShockBeamFire",Back=8,Up=10)

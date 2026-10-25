@@ -1528,7 +1528,7 @@ static void AfterPresent(UINT bbW, UINT bbH)
 			f = V3{ cosf(ya), sinf(ya), 0 };
 		}
 		if (g_mockBehind) { static double placedAt = 0; if (g_panelPlaced && placedAt == 0) placedAt = Now(); bool on = placedAt > 0 && Now() - placedAt > 2000; g_worn = on; float yb = (on ? 120.0f : 0.0f) * 3.14159265f / 180.0f; f = V3{ cosf(yb), sinf(yb), 0 }; }
-		if (g_mockHeading && g_frames >= 300) { float y6 = 60.0f * 3.14159265f / 180.0f; f = V3{ cosf(y6), sinf(y6), 0 }; }
+		if (g_mockHeading && g_frames >= 300) { float y6 = (60.0f + 2.0f * sinf(t * 2.0f)) * 3.14159265f / 180.0f; f = V3{ cosf(y6), sinf(y6), 0 }; }   // (a 2-degree wobble: a head on a neck, not a headset on the desk)
 		if (g_mockPitchRoll)
 		{
 			// head pitched up 20 deg, rolled 15 deg (right ear down), built in OpenVR space and converted
