@@ -138,7 +138,9 @@ gameplay is done).
 Zoom (Lightning Gun, Sniper Rifle alt-fire): instead of narrowing the whole view, which in a headset swings the world
 with every head movement, the zoomed view appears in a round scope lens with a reticle. Its centre is where the shot
 goes. Controller mode: the lens sits on the gun above your hand (`ScopeOffset`, `ScopeDiameter` 0.10 m); raise the
-gun to your eye. Keyboard mode: it floats ahead along your aim, facing it and level, a real object in the scene (looking around
+gun to your eye. Per weapon: `VRScope <forward> <right> <up> [diameter]` in the console (metres from the gun's handle)
+for the weapon in your hand, saved; `VRScope` alone shows it, `VRScopeReset` goes back to the default. While zoomed,
+the right stick forward / back zooms in / out (`ScopeStickZoom=0.6`; 0 = off), up to ~24x; alt-fire again leaves the zoom. Keyboard mode: it floats ahead along your aim, facing it and level, a real object in the scene (looking around
 doesn't turn it) (`ScopeKBMDistance` 0.54 m, `ScopeKBMDiameter`
 0.21 m). At least `ScopeMinZoom` (2x), more as UT's zoom closes in (up to ~11x). `bScope=false` turns it off. All in
 `[UT2004VR.VRPlayerController]` of `UT2004VR.ini`.

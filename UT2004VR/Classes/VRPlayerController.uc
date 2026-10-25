@@ -83,7 +83,9 @@ var config vector ScopeOffset;      // controller mode: lens centre from the gun
 var config float ScopeKBMDiameter;  // keyboard mode: lens size (m), in the middle of your aim
 var config float ScopeKBMDistance;  // keyboard mode: how far ahead of your eyes (m)
 var config float ScopeMinZoom;      // magnification at the start of a zoom (UT's own zoom raises it)
-var config int   ScopeRes;          // the scope's render target, pixels
+var config int   ScopeRes;
+var config float ScopeStickZoom;    // controller mode, zoomed: the right stick forward / back zooms in / out at this rate (UT zoom levels per second; 0 = off)
+var array<VRTuning.ScopeOfs> Scopes;   // per-weapon lens (VRScope), saved in VRTuning          // the scope's render target, pixels
 var ScriptedTexture ScopeTex;
 var VRLensActor LensPic, LensRim;   // the lens in the scene (picture, rim)
 var Material ScopeMat;              // the scope picture, cut round (ScopeMask)
@@ -2246,10 +2248,117 @@ function bool IsZoomed()
 	return bZooming || FOVAngle < DefaultFOV - 1;
 }
 
+// the lens for a weapon in controller mode: its own (VRScope; a parent class's counts too), else ScopeOffset /
+// ScopeDiameter
+function ScopeFor(Weapon W, out vector O, out float D)
+{
+	local int i, Best;
+	local class<Object> C, BestC;
+
+	O = ScopeOffset;
+	D = ScopeDiameter;
+	if ( W == None )
+		return;
+	Best = -1;
+	for ( i = 0; i < Scopes.Length; i++ )
+	{
+		if ( Scopes[i].Gun ~= string(W.Class.Name) )
+		{
+			Best = i;
+			break;
+		}
+		C = GunClass(Scopes[i].Gun, W);
+		if ( C != None && ClassIsChildOf(W.Class, C) && (Best < 0 || ClassIsChildOf(C, BestC)) )
+		{
+			Best = i;
+			BestC = C;
+		}
+	}
+	if ( Best < 0 )
+		return;
+	O = Scopes[Best].Offset;
+	if ( Scopes[Best].Diameter > 0 )
+		D = Scopes[Best].Diameter;
+}
+
+// controller mode: the scope lens of the weapon in your hand, "forward right up [diameter]" in metres from the
+// gun's handle (ScopeOffset / ScopeDiameter for the others); saved. VRScope alone shows it; VRScopeReset drops it.
+exec function VRScope(optional string S)
+{
+	local int i;
+	local array<string> P;
+	local vector O;
+	local float D;
+
+	if ( Pawn == None || Pawn.Weapon == None )
+		return;
+	if ( S != "" )
+	{
+		Split(S, " ", P);
+		for ( i = 0; i < Scopes.Length; i++ )
+			if ( Scopes[i].Gun ~= string(Pawn.Weapon.Class.Name) )
+				break;
+		if ( i == Scopes.Length )
+		{
+			Scopes.Length = i + 1;
+			Scopes[i].Gun = string(Pawn.Weapon.Class.Name);
+		}
+		if ( P.Length >= 3 )
+		{
+			Scopes[i].Offset.X = float(P[0]);
+			Scopes[i].Offset.Y = float(P[1]);
+			Scopes[i].Offset.Z = float(P[2]);
+		}
+		if ( P.Length >= 4 )
+			Scopes[i].Diameter = float(P[3]);
+		SaveTuning();
+	}
+	ScopeFor(Pawn.Weapon, O, D);
+	ClientMessage("Scope "$Pawn.Weapon.Class.Name$": forward "$O.X$" right "$O.Y$" up "$O.Z$" m, diameter "$D$" m");
+	Log("UT2004VR: scope "$Pawn.Weapon.Class.Name$" offset "$O$" diameter "$D, 'UT2004VR');
+}
+
+exec function VRScopeReset()
+{
+	local int i;
+	if ( Pawn == None || Pawn.Weapon == None )
+		return;
+	for ( i = 0; i < Scopes.Length; i++ )
+		if ( Scopes[i].Gun ~= string(Pawn.Weapon.Class.Name) )
+		{
+			Scopes.Remove(i, 1);
+			break;
+		}
+	SaveTuning();
+	VRScope();
+}
+
+// controller mode, zoomed: the right stick forward / back zooms in / out (UT's own zoom: ZoomLevel, 90 - 88 x it
+// degrees), short of leaving the zoom (that is alt-fire again, as in UT)
+function StickZoom(float DeltaTime)
+{
+	local float A, ZMin;
+
+	if ( Level.TimeSeconds < DebugStickUntil )
+		StickTY = DebugStickY;
+	A = StickAxis(StickTY);
+	if ( A == 0 || ScopeStickZoom <= 0 )
+		return;
+	bZooming = false;   // UT's hold-to-zoom stops: the stick has it
+	ZMin = FMax(0.05, (90.0 - (DefaultFOV - 3)) / 88.0);
+	ZoomLevel = FClamp(ZoomLevel + A * ScopeStickZoom * DeltaTime, ZMin, 0.98);
+	DesiredFOV = FClamp(90.0 - ZoomLevel * 88.0, 1, 179);
+	if ( bDebugLog && Level.TimeSeconds > NextScopeLog )
+	{
+		NextScopeLog = Level.TimeSeconds + 0.5;
+		Log("UT2004VR: stick zoom "$A$" -> level "$ZoomLevel$" fov "$DesiredFOV, 'UT2004VR');
+	}
+}
+
 function UpdateScope(vector TipW, vector X, vector Y, vector Z)
 {
-	local float D, A, Mag;
-	local vector HZ, CY, CZ;
+	local float D, A, Mag, SD;
+	local vector HZ, CY, CZ, SO;
 	if ( !bScope || !IsZoomed() || bMenuOpen )
 		return;
 	ScopeCamLoc = TipW + X * 20;
@@ -2273,8 +2382,9 @@ function UpdateScope(vector TipW, vector X, vector Y, vector Z)
 	}
 	else
 	{
-		ScopeLensW = GunHandleW + (X * ScopeOffset.X + Y * ScopeOffset.Y + Z * ScopeOffset.Z) * UUPerMeter;
-		ScopeLensR = ScopeDiameter * 0.5 * UUPerMeter;
+		ScopeFor(Pawn.Weapon, SO, SD);
+		ScopeLensW = GunHandleW + (X * SO.X + Y * SO.Y + Z * SO.Z) * UUPerMeter;
+		ScopeLensR = SD * 0.5 * UUPerMeter;
 	}
 	D = FMax(VSize(ScopeLensW - VRHeadWorld), 1);
 	A = 2 * Atan(ScopeLensR, D) * 180.0 / 3.14159265;          // how wide the lens looks
@@ -2483,7 +2593,7 @@ exec function VRActorLog(string ClassName)
 	Log("UT2004VR: "$n$" "$C, 'UT2004VR');
 }
 
-// debug: press a controller button for 0.3 s, as the proxy would report it: use, jump, next, prev, dodge, crouch
+// debug: press a controller button for 0.3 s, as the proxy would report it: use, jump, next, prev, dodge, crouch, alt, fire
 exec function VRTapBtn(string B)
 {
 	TapBtn = Caps(B);
@@ -2501,6 +2611,8 @@ function SetTapBtn(bool bOn)
 	case "PREV": bBtnPrev = bOn; break;
 	case "DODGE": bBtnDodge = bOn; break;
 	case "CROUCH": bBtnCrouch = bOn; break;
+	case "ALT": bBtnAlt = bOn; break;
+	case "FIRE": bBtnFire = bOn; break;
 	}
 }
 
@@ -3427,8 +3539,11 @@ function VRPlayerMove(float DeltaTime)
 	Pawn.GroundSpeed = Pawn.Default.GroundSpeed * MoveSpeedScale * FMax(Mag, 0.3);
 	VRMoveAmount = Mag;
 
+	// zoomed (controller mode): the right stick forward / back zooms instead of aiming a teleport
+	if ( bScope && IsZoomed() && !bAiming )
+		StickZoom(DeltaTime);
 	// teleport: push the right stick forward to aim, release to go
-	if ( bTeleport && StickTY > 0.6 && Abs(StickTX) < 0.6 )
+	else if ( bTeleport && StickTY > 0.6 && Abs(StickTX) < 0.6 )
 	{
 		bAiming = true;
 		VRTeleportAim();
@@ -4866,6 +4981,7 @@ function LoadTuning()
 	GripCacheClass = None;
 	VehSeats = class'VRTuning'.default.VehSeats;
 	KBMGrips = class'VRTuning'.default.KBMGrips;
+	Scopes = class'VRTuning'.default.Scopes;
 	if ( !class'VRTuning'.default.bSaved )
 		return;
 	GunOffset = class'VRTuning'.default.GunOffset;
@@ -4899,6 +5015,7 @@ function SaveTuning()
 	class'VRTuning'.default.bMatchGameHeight = bMatchGameHeight;
 	class'VRTuning'.default.FlipGuns = FlipGuns;
 	class'VRTuning'.default.Grips = Grips;
+	class'VRTuning'.default.Scopes = Scopes;
 	class'VRTuning'.default.VehSeats = VehSeats;
 	class'VRTuning'.default.KBMGrips = KBMGrips;
 	class'VRTuning'.static.StaticSaveConfig();
@@ -4995,6 +5112,7 @@ defaultproperties
 	GunLagMax=0.015
 	GunLagSmooth=0.15
 	ChairHistLife=60
+	ScopeStickZoom=0.6
 	RecoilScale=1.0
 	RecoilReturn=0.22
 	Recoils(0)=(Fire="ZoomSuperShockBeamFire",Back=8,Up=10)

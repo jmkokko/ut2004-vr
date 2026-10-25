@@ -24,6 +24,15 @@ struct VehSeat
 	var bool   bHideMesh;  // hide it and its guns; neither: UT's own choice
 };
 
+// per-weapon scope lens in controller mode (VRScope): its centre from the gun's handle (gun axes: forward, right,
+// up; m) and its diameter (m; 0 = ScopeDiameter)
+struct ScopeOfs
+{
+	var string Gun;
+	var vector Offset;
+	var float  Diameter;
+};
+
 var config bool   bSaved;
 var config vector GunOffset;
 var config float  GunScale;
@@ -39,6 +48,7 @@ var config bool   bMatchGameHeight;
 var config array<string> FlipGuns;
 var config array<GripOfs> KBMGrips;   // the same per weapon for keyboard/mouse mode (gun in front of the chest)
 var config array<VehSeat> VehSeats;
+var config array<ScopeOfs> Scopes;
 var config array<GripOfs> Grips;   // third-person models that are modelled upside down
 
 defaultproperties
