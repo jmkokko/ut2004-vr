@@ -70,7 +70,7 @@ distance; out of view: an arrow at the layer's edge), its tracked vehicle and ga
 Bots: `[UT2004VR.VRGame]` `BotNames=Alpha,Bravo,Charlie` uses your names in order (Alpha2… when they run out), empty keeps UT's roster names; `VRNumBots=4`, `BotSkill=2` (0 Novice … 3 Skilled … 7 Godlike); a URL `?NumBots=`/`?Difficulty=`
 overrides them. When you die, pull the trigger to respawn.
 
-Console: `VRStatus`, `VRSpeed 0.45`, `VRScale 52.5` (uu per meter). Settings are saved to `System/UT2004VR.ini`.
+Console: `VRStatus`, `VRSpeed 0.7` (walking speed with the stick, as a share of UT's; default 0.7), `VRScale 52.5` (uu per meter). Settings are saved to `System/UT2004VR.ini`.
 Proxy settings live in `System/UT2004VR_proxy.ini`: `GPUShare` (1 = zero-copy D3D9Ex sharing, 0 = CPU copy fallback), `RenderScale` (default 0.65 → 2048 px per eye; 1.0 = SteamVR's recommended size), `Port`, and the test options `Mock`, `MockDemo` (1 = scripted sticks, 2 = still head, 3 = pitched and rolled head) and `DumpEyes`. `bCalib=True` in `UT2004VR.ini` shows projection-test markers.
 The desktop window shows a normal mono view; keep it small (1280x720), since it costs GPU time.
 

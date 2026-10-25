@@ -4919,7 +4919,7 @@ defaultproperties
 	bSmoothTurn=false
 	SnapTurnDegrees=45
 	SmoothTurnDegPerSec=120
-	MoveSpeedScale=0.45
+	MoveSpeedScale=0.7
 	bTeleport=true
 	TeleportSpeed=1100
 	TeleportMaxDist=1600
