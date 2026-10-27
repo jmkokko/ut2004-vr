@@ -100,6 +100,7 @@ static bool g_mockSeated = false;
 static bool g_mockHeading = false;
 static bool g_mockJump = false;
 static bool g_mockSitDown = false;   // MockDemo=c: worn, standing 45 cm off to one side, then sitting down at the desk (frame 1200; in the main menus 2 s after the panel is placed)
+static bool g_mockJoinTurn = false;  // MockDemo=d: as b (fire every 500 frames to join), then the head turns 40 deg (frame 2500) and 80 deg (frame 3500)
 static bool g_mockJoin = false;      // MockDemo=b: still head; the trigger pressed every 500 frames (skips an intro, joins the match), no other input
 static bool g_mockBehind = false;    // MockDemo=a: the main menus' panel placed while the headset lay on the desk; 2 s later it is on, facing 120 deg to one side
 static bool g_mockLookAway = false;  // MockDemo=9: worn, head straight (the menu comes up), then 40 deg, then 55 deg to one side
@@ -123,7 +124,7 @@ static void ReadConfig()
 	if (GetPrivateProfileStringA("VR", "DumpEyes", "", buf, sizeof buf, ini.c_str())) g_dumpEyes = buf[0] == '1';
 	if (GetPrivateProfileStringA("VR", "DumpEyesStart", "", buf, sizeof buf, ini.c_str())) g_dumpStart = std::max(1, atoi(buf));
 	if (GetPrivateProfileStringA("VR", "DumpEyesStep", "", buf, sizeof buf, ini.c_str())) g_dumpStep = std::max(1, atoi(buf));
-	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b'; g_mockSitDown = buf[0] == 'c'; if (g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSitDown || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
+	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b' || buf[0] == 'd'; g_mockJoinTurn = buf[0] == 'd'; g_mockSitDown = buf[0] == 'c'; if (g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSitDown || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
 	if (GetPrivateProfileStringA("VR", "PanelDistance", "", buf, sizeof buf, ini.c_str())) g_panelDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenDistance", "", buf, sizeof buf, ini.c_str())) g_screenDist = std::max(0.5f, std::min(10.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenWidth", "", buf, sizeof buf, ini.c_str())) g_screenWidth = std::max(0.4f, std::min(10.0f, (float)atof(buf)));
@@ -1520,6 +1521,7 @@ static void AfterPresent(UINT bbW, UINT bbH)
 		float yaw = g_mockDemo2 ? 0.0f : 0.35f * sinf(t * 0.5f);
 		V3 p{ 0, 0, 1.70f }, f{ cosf(yaw), sinf(yaw), 0 }, u{ 0, 0, 1 };
 		if (g_mockSeated) p.z = g_frames < 1500 ? 1.10f : 1.30f;
+		if (g_mockJoinTurn && g_frames >= 2500) { float yd = (g_frames < 3500 ? 40.0f : 80.0f) + 2.0f * sinf(t * 2.0f); yd *= 3.14159265f / 180.0f; f = V3{ cosf(yd), sinf(yd), 0 }; }
 		if (g_mockSitDown) { static double placedAt = 0; if (g_panelPlaced && placedAt == 0) placedAt = Now(); g_worn = true; bool sat = g_frames >= 1200 && (!g_menuOpen || (placedAt > 0 && Now() - placedAt > 2000)); p = sat ? V3{ 0, 0, 1.15f } : V3{ 0.10f, 0.42f, 1.52f }; }   // MockDemo=5: seated, sits up 20 cm after ~17 s
 		if (g_mockLookAway)
 		{
