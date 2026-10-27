@@ -3806,7 +3806,7 @@ function KBMAfterMove()
 // so the view follows the vehicle under it instead (or, on a stationary turret, your heading when you got on):
 // the mouse turns the gun, never the view.
 // where your seat sits: in the vehicle's frame, except on Assault's turrets (minigun, ball, link), where the seat
-// (UT's camera point and your VRSeat offset) turns with the turret, along an arc round its pivot as UT's own
+// (UT's camera point and your VRSeat offset) turns and pitches with the turret, round its pivot as UT's own
 // camera does (the user: "the turret turns around me"). Only the position: the view's own frame stays the base's
 // (VehicleFrame), or a turret steered by your gaze would chase it forever.
 simulated function rotator SeatFrame()
@@ -3814,7 +3814,9 @@ simulated function rotator SeatFrame()
 	local rotator R;
 	if ( ASTurret(Pawn) != None )
 	{
+		// heading and pitch (the user: the seat should follow the turret's pitch too); no roll
 		R.Yaw = Pawn.Rotation.Yaw;
+		R.Pitch = Pawn.Rotation.Pitch;
 		return R;
 	}
 	return VehicleFrame();

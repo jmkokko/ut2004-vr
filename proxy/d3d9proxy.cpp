@@ -100,7 +100,7 @@ static bool g_mockSeated = false;
 static bool g_mockHeading = false;
 static bool g_mockJump = false;
 static bool g_mockSitDown = false;   // MockDemo=c: worn, standing 45 cm off to one side, then sitting down at the desk (frame 1200; in the main menus 2 s after the panel is placed)
-static bool g_mockJoinTurn = false;  // MockDemo=d: as b (fire every 500 frames to join), then the head turns 40 deg (frame 2500) and 80 deg (frame 3500)
+static bool g_mockJoinTurn = false;  // MockDemo=d: as b (fire every 500 frames to join), then the head turns 40 deg (frame 2500) and 80 deg, looking 20 deg down (frame 3500)
 static bool g_mockJoin = false;      // MockDemo=b: still head; the trigger pressed every 500 frames (skips an intro, joins the match), no other input
 static bool g_mockBehind = false;    // MockDemo=a: the main menus' panel placed while the headset lay on the desk; 2 s later it is on, facing 120 deg to one side
 static bool g_mockLookAway = false;  // MockDemo=9: worn, head straight (the menu comes up), then 40 deg, then 55 deg to one side
@@ -1521,7 +1521,7 @@ static void AfterPresent(UINT bbW, UINT bbH)
 		float yaw = g_mockDemo2 ? 0.0f : 0.35f * sinf(t * 0.5f);
 		V3 p{ 0, 0, 1.70f }, f{ cosf(yaw), sinf(yaw), 0 }, u{ 0, 0, 1 };
 		if (g_mockSeated) p.z = g_frames < 1500 ? 1.10f : 1.30f;
-		if (g_mockJoinTurn && g_frames >= 2500) { float yd = (g_frames < 3500 ? 40.0f : 80.0f) + 2.0f * sinf(t * 2.0f); yd *= 3.14159265f / 180.0f; f = V3{ cosf(yd), sinf(yd), 0 }; }
+		if (g_mockJoinTurn && g_frames >= 2500) { float yd = (g_frames < 3500 ? 40.0f : 80.0f) + 2.0f * sinf(t * 2.0f), pd = g_frames < 3500 ? 0.0f : -20.0f; yd *= 3.14159265f / 180.0f; pd *= 3.14159265f / 180.0f; f = V3{ cosf(yd) * cosf(pd), sinf(yd) * cosf(pd), sinf(pd) }; u = V3{ -cosf(yd) * sinf(pd), -sinf(yd) * sinf(pd), cosf(pd) }; }
 		if (g_mockSitDown) { static double placedAt = 0; if (g_panelPlaced && placedAt == 0) placedAt = Now(); g_worn = true; bool sat = g_frames >= 1200 && (!g_menuOpen || (placedAt > 0 && Now() - placedAt > 2000)); p = sat ? V3{ 0, 0, 1.15f } : V3{ 0.10f, 0.42f, 1.52f }; }   // MockDemo=5: seated, sits up 20 cm after ~17 s
 		if (g_mockLookAway)
 		{
