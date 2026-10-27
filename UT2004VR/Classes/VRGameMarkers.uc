@@ -245,6 +245,29 @@ function DrawONSCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex,
 		AimTile(PC, Tex, PX, PY, WP.CrosshairTexture, WP.CrosshairX, WP.CrosshairY, WP.CrosshairColor);
 }
 
+// the space fighter's steering crosshair (gaze steering): UT's crosshair (your style, colour and scale) where the
+// ship is heading for
+function DrawSteerCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex, vector Loc, rotator Rot, vector P)
+{
+	local float PX, PY, TW, TH, S;
+	local int i;
+	local Material M;
+	local color C;
+
+	if ( H == None || H.Crosshairs.Length == 0 || !InView(PC, Tex, P, Loc, Rot, PX, PY) )
+		return;
+	i = Clamp(H.CrosshairStyle, 0, H.Crosshairs.Length - 1);
+	M = H.Crosshairs[i].WidgetTexture;
+	if ( M == None )
+		return;
+	TW = Abs(H.Crosshairs[i].TextureCoords.X2 - H.Crosshairs[i].TextureCoords.X1);
+	TH = Abs(H.Crosshairs[i].TextureCoords.Y2 - H.Crosshairs[i].TextureCoords.Y1);
+	S = H.Crosshairs[i].TextureScale * 0.5 * H.CrosshairScale * LayerRes(PC, Tex);
+	C = H.CrosshairColor;
+	Tex.DrawTile(PX - TW * S * 0.5, PY - TH * S * 0.5, TW * S, TH * S, H.Crosshairs[i].TextureCoords.X1,
+		H.Crosshairs[i].TextureCoords.Y1, TW, TH, M, C);
+}
+
 // a tile CrosshairX/Y window pixels from the centre (scaled from the window to the layer in this eye)
 function AimTile(VRPlayerController PC, ScriptedTexture Tex, float PX, float PY, Texture T, float CX, float CY, color C)
 {

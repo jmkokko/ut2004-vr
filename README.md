@@ -37,8 +37,10 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |
 | Right trigger / grip | Fire / alt-fire |
 | **In a space fighter** (Assault) | |
+| Where you look | Steers, like the Onslaught Raptor but in pitch too: the steering crosshair is your gaze and the ship turns toward it, faster the further it is off the nose (`FighterGazeGain=3` deg/s per deg), banking into the turn (`FighterBankPerDeg=1.5`, up to `FighterMaxBank=45`) and levelling out on target. `bFighterGazeSteer=False` turns it off |
+| Left stick click (hold) | Freelook: the steering crosshair stays where it is while you look around |
 | Left stick | Throttle (forward / back) and strafe |
-| Left trigger + left stick left/right | Roll; left grip levels the wings |
+| Left trigger + left stick left/right | Roll by hand; left grip levels the wings |
 | Right stick | Pitch and yaw, as the mouse does (`FighterSteer=2000`; negative inverts the pitch), `FighterInertia` (s, default 0: instant) eases the stick in and out |
 | Right A / B | Next / previous target |
 
