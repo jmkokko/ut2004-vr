@@ -1604,14 +1604,39 @@ simulated function bool KBMTurret()
 	return bKeyboardMouse && VRActive() && (ASTurret(Pawn) != None || ONSWeaponPawn(Pawn) != None);
 }
 
-// controller mode: the vehicles and seats the right controller aims (bVehicleHandAim): space fighters, the Raptor
-// and Cicada (flying, they turn toward the aim), Assault's turrets and every gunner seat / turret (ONSWeaponPawn)
+// controller mode: the right controller aims every vehicle and seat (bVehicleHandAim), as it aims a weapon - the
+// guns, and the vehicles that face their aim (space fighters, Raptor, Cicada, Manta) turn toward it; your head
+// looks around freely
 simulated function bool HandAimsVehicle()
 {
-	if ( !bVehicleHandAim || bKeyboardMouse || !VRActive() || Vehicle(Pawn) == None || bHandOK[1] == 0 )
-		return false;
-	return ASVehicle_SpaceFighter(Pawn) != None || ONSChopperCraft(Pawn) != None || ASTurret(Pawn) != None
-		|| ONSWeaponPawn(Pawn) != None;
+	return bVehicleHandAim && !bKeyboardMouse && VRActive() && Vehicle(Pawn) != None && bHandOK[1] != 0;
+}
+
+// where the right controller's aim lands in a vehicle (the crosshair there): traced from the controller, past your
+// own vehicle and the guns on it
+simulated function vector HandAimPoint()
+{
+	local vector S, D, End, HL, HN;
+	local Actor A;
+	local Vehicle B;
+	local int i;
+
+	S = VehicleHandLoc();
+	D = vector(VehicleHandRot());
+	End = S + D * 20000;
+	B = Vehicle(Pawn);
+	if ( ONSWeaponPawn(Pawn) != None && ONSWeaponPawn(Pawn).VehicleBase != None )
+		B = ONSWeaponPawn(Pawn).VehicleBase;
+	for ( i = 0; i < 6; i++ )
+	{
+		A = Pawn.Trace(HL, HN, End, S, true);
+		if ( A == None )
+			return End;
+		if ( A != Pawn && A != B && A.Base != Pawn && A.Base != B && A.Owner != Pawn && A.Owner != B )
+			return HL;
+		S = HL + D * 16;
+	}
+	return End;
 }
 
 // the right controller's aim in a vehicle (the frame your head is in there), tilted as a weapon is (GunPitchOffset)
@@ -3127,9 +3152,14 @@ event PlayerCalcView(out actor ViewActor, out vector CameraLocation, out rotator
 	ViewActor = Pawn;
 	CameraLocation = VRHeadWorld;
 	CameraRotation = VRHeadRot;
-	// vehicle guns aim where this view looks (UT traces along it): your gaze, level (no roll)
+	// vehicle guns aim where this view looks (UT traces along it): your gaze, level (no roll) - or, aimed with the
+	// controller, where it points (the eyes render from the head; this only steers UT's guns)
 	if ( Vehicle(Pawn) != None )
+	{
+		if ( HandAimsVehicle() )
+			CameraRotation = VehicleHandRot();
 		CameraRotation.Roll = 0;
+	}
 	CacheCalcView(ViewActor, CameraLocation, CameraRotation);
 }
 
@@ -4841,6 +4871,8 @@ function DrawVehicleCrosshair(ScriptedTexture Tex, vector Loc, rotator Rot)
 
 	if ( bVehicleLaser || !VehicleAimTrace(Start, Dir, HitL, W, bHit) )
 		return;
+	if ( HandAimsVehicle() )
+		HitL = HandAimPoint();   // aimed with the controller: where it points
 	if ( !HudProject(Tex, HitL, Loc, Rot, PX, PY) )
 		return;
 	S = Tex.USize * 0.003;

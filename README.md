@@ -31,8 +31,7 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Walk in your room | The pawn follows your head, with collision |
 | **In a vehicle** | |
 | Left stick | Drive and steer (forward/back = throttle, left/right = steer; hovering and flying vehicles strafe) |
-| Right controller | Raptor, Cicada, every turret and gunner seat (Assault's too): aims, as with a weapon - the vehicle or turret turns toward it, your head looks around freely (`bVehicleHandAim`) |
-| Right stick left/right | Turns the Manta (it faces your view; the stick turns your view and it follows, `VehicleTurnDegPerSec=120`) |
+| Right controller | Every vehicle, turret and gunner seat: aims, as with a weapon - the crosshair is where it points, the guns turn there and the vehicles that face their aim (Manta, Raptor, Cicada) turn toward it; your head looks around freely (`bVehicleHandAim`; False: your gaze aims and the right stick turns the Manta, Raptor and Cicada) |
 | Left stick click | Horn |
 | Left trigger / left grip | Jump or rise (Manta, Raptor) / duck or descend |
 | Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |

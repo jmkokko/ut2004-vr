@@ -215,6 +215,9 @@ function DrawONSCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex,
 	local bool bTraced, bSeen;
 
 	bTraced = PC.VehicleAimTrace(Start, Dir, HL, W, bHit);
+	// aimed with the controller: the crosshair is where it points (the gun turns there)
+	if ( bTraced && PC.HandAimsVehicle() )
+		HL = PC.HandAimPoint();
 	bSeen = bTraced && InView(PC, Tex, HL, Loc, Rot, PX, PY);
 	if ( PC.bDebugLog && PC.Level.TimeSeconds > NextAimLog )
 	{
