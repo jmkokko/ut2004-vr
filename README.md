@@ -31,17 +31,17 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Walk in your room | The pawn follows your head, with collision |
 | **In a vehicle** | |
 | Left stick | Drive and steer (forward/back = throttle, left/right = steer; hovering and flying vehicles strafe) |
-| Right stick left/right | Turn the Manta, Raptor and Cicada (they face where you look; the stick turns your view and they follow, `VehicleTurnDegPerSec=120`) |
+| Right controller | Raptor, Cicada, every turret and gunner seat (Assault's too): aims, as with a weapon - the vehicle or turret turns toward it, your head looks around freely (`bVehicleHandAim`) |
+| Right stick left/right | Turns the Manta (it faces your view; the stick turns your view and it follows, `VehicleTurnDegPerSec=120`) |
 | Left stick click | Horn |
 | Left trigger / left grip | Jump or rise (Manta, Raptor) / duck or descend |
 | Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |
 | Right trigger / grip | Fire / alt-fire |
 | **In a space fighter** (Assault) | |
-| Where you look | Steers, like the Onslaught Raptor but in pitch too: the steering crosshair is your gaze and the ship turns toward it, faster the further it is off the nose (`FighterGazeGain=3` deg/s per deg), banking into the turn (`FighterBankPerDeg=1.5`, up to `FighterMaxBank=45`) and levelling out on target. `bFighterGazeSteer=False` turns it off |
-| Left stick click (hold) | Freelook: the steering crosshair stays where it is while you look around |
+| Right controller | Aims the steering crosshair, as with a weapon: the ship turns toward it, faster the further it is off the nose (`FighterGazeGain=3` deg/s per deg), round the world's vertical like an aircraft, banking into the turn (`FighterBankPerDeg=1.5`, up to `FighterMaxBank=45`) and levelling out on target. Your head looks around freely |
 | Left stick | Throttle (forward / back) and strafe |
 | Left trigger + left stick left/right | Roll by hand; left grip levels the wings |
-| Right stick | Pitch and yaw, as the mouse does (`FighterSteer=2000`; negative inverts the pitch), `FighterInertia` (s, default 0: instant) eases the stick in and out |
+| Right stick | Nothing while the controller aims (`bVehicleHandAim=False`: pitch and yaw, as the mouse does, `FighterSteer=2000`) |
 | Right A / B | Next / previous target |
 
 Index uses left B for the menu and left A for the scoreboard. WMR uses the left menu button and the left touchpad click, with the right touchpad for next weapon and the right menu button for previous weapon. Vive has no scoreboard button. Remap anything in SteamVR's Controller Bindings while the game runs. The cycle of A/B includes the Redeemer and Ion Painter.

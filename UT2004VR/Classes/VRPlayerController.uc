@@ -104,6 +104,8 @@ var config float BehindHeight;      // ...and this far above your eyes (m)...
 var config float BehindRight;       // ...and this far to the right (m; over the shoulder, so the gun and laser show)
 var bool     bTPGun;                // behind view: the gun hangs in the character's hand (UT's attachment)
 var config float VehicleTurnDegPerSec;   // controller mode: the right stick left / right turns Manta, Raptor and Cicada (the vehicles that face your view) this fast
+var config bool  bVehicleHandAim;    // controller mode: flying vehicles (space fighters, Raptor, Cicada) and turrets / gunner seats aim with the right controller, as a weapon does; your head looks around freely
+var rotator VehRefR, VehCamR;        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
 var config bool  bFighterGazeSteer;  // controller mode, Assault's space fighters: the ship turns toward your gaze (the steering crosshair), banking into the turn; hold the left stick click for freelook
 var config float FighterGazeGain;    // ... turn rate per degree the crosshair is off the nose (deg/s per deg)
 var config float FighterBankPerDeg;  // ... bank (deg) per degree the crosshair is to the side, up to FighterMaxBank
@@ -111,7 +113,8 @@ var config float FighterMaxBank;
 var vector FighterAimDir;            // the steering crosshair's direction (world): your gaze, or held there in freelook
 var bool   bFighterAimSet;
 var float  DebugFreelookUntil;        // debug: VRFighterAim holds the crosshair (as freelook) until then
-var float  FighterErrYaw, FighterErrPitch, FighterBank;   // debug: the last errors (deg) and the bank wanted
+var float  FighterErrYaw, FighterErrPitch, FighterBank;
+var vector FighterRate;               // the ship's turn rates (deg/s): round the world's up, its wings, its nose   // debug: the last errors (deg) and the bank wanted
 var config float FighterInertia;    // controller mode: seconds the fighter takes to wind up / settle a turn from the stick (0 = instant)
 var float FighterTX, FighterTY;      // the eased stick
 var config float FighterSteer;      // controller mode: right stick -> Assault space fighter pitch / yaw rate, as the mouse (negative: inverted pitch)
@@ -1480,6 +1483,8 @@ simulated function UpdateHeadWorld()
 		if ( ASVehicle_SpaceFighter(Pawn) != None && !bBehindView )
 		{
 			CamR = ASVehicle_SpaceFighter(Pawn).GetViewRotation();
+			VehRefR = RefR;
+			VehCamR = CamR;
 			VRHeadWorld = Pawn.Location + ((LastVehicle.FPCamPos + SeatOffsetFor(LastVehicle)) >> CamR)
 				+ ((((HeadPos - VehAnchor) * UUPerMeter) << RefR) >> CamR);
 			F = (HeadF << RefR) >> CamR;
@@ -1488,6 +1493,8 @@ simulated function UpdateHeadWorld()
 			return;
 		}
 		CamR.Yaw = VehicleViewYaw();
+		VehRefR = RefR;
+		VehCamR = CamR;
 		// UT's first-person camera: FPCamPos in the vehicle's frame, then FPCamViewOffset along the view (the
 		// Goliath's camera is 90 uu ahead of its pivot); here along the vehicle's heading, so the eyes don't swing
 		// on a long neck when you turn your head. Plus your own seat offset (VRSeat).
@@ -1589,6 +1596,39 @@ simulated function rotator GunRot()
 	X2 = X * Cos(A) + Z * Sin(A);
 	Z2 = Z * Cos(A) - X * Sin(A);
 	return OrthoRotation(X2, Y, Z2);
+}
+
+// controller mode: the vehicles and seats the right controller aims (bVehicleHandAim): space fighters, the Raptor
+// and Cicada (flying, they turn toward the aim), Assault's turrets and every gunner seat / turret (ONSWeaponPawn)
+simulated function bool HandAimsVehicle()
+{
+	if ( !bVehicleHandAim || bKeyboardMouse || !VRActive() || Vehicle(Pawn) == None || bHandOK[1] == 0 )
+		return false;
+	return ASVehicle_SpaceFighter(Pawn) != None || ONSChopperCraft(Pawn) != None || ASTurret(Pawn) != None
+		|| ONSWeaponPawn(Pawn) != None;
+}
+
+// the right controller's aim in a vehicle (the frame your head is in there), tilted as a weapon is (GunPitchOffset)
+simulated function rotator VehicleHandRot()
+{
+	local rotator R;
+	local vector X, Y, Z, X2, Z2;
+	local float A;
+
+	R = FrameRot((HandF[1] << VehRefR) >> VehCamR, (HandU[1] << VehRefR) >> VehCamR);
+	if ( GunPitchOffset == 0 )
+		return R;
+	GetAxes(R, X, Y, Z);
+	A = GunPitchOffset * 3.14159265 / 32768.0;
+	X2 = X * Cos(A) + Z * Sin(A);
+	Z2 = Z * Cos(A) - X * Sin(A);
+	return OrthoRotation(X2, Y, Z2);
+}
+
+// ... and where the controller is (from your eyes, in the same frame)
+simulated function vector VehicleHandLoc()
+{
+	return VRHeadWorld + ((((HandPos[1] - HeadPos) * UUPerMeter) << VehRefR) >> VehCamR);
 }
 
 // keyboard/mouse: a small rubber band - when the head moves (strafing, walking, jumping, crouching) the gun first stays
@@ -2777,7 +2817,7 @@ function VRVehicleButtons()
 		NextWeapon();
 	if ( bBtnPrev && !bOldVehPrev )
 		PrevWeapon();
-	if ( bBtnJump && !bOldVehJump && !(bFighterGazeSteer && ASVehicle_SpaceFighter(Pawn) != None) )
+	if ( bBtnJump && !bOldVehJump && !(bFighterGazeSteer && ASVehicle_SpaceFighter(Pawn) != None && !HandAimsVehicle()) )
 	{
 		Log("UT2004VR: horn (controller) "$Pawn.Class.Name, 'UT2004VR');
 		PlayVehicleHorn(0);
@@ -2851,7 +2891,7 @@ state PlayerDriving
 			VRStickDrive();
 			// Manta, Raptor, Cicada turn toward the view (bFollowLookDir): the right stick turns the view's heading
 			// (VehViewYaw), and they follow it, as the mouse does in 2D
-			if ( Vehicle(Pawn).bFollowLookDir && ONSWeaponPawn(Pawn) == None && VehicleTurnDegPerSec > 0 )
+			if ( Vehicle(Pawn).bFollowLookDir && ONSWeaponPawn(Pawn) == None && VehicleTurnDegPerSec > 0 && !HandAimsVehicle() )
 			{
 				if ( Level.TimeSeconds < DebugStickUntil )
 					StickTX = DebugStickX;
@@ -2878,44 +2918,67 @@ state PlayerDriving
 function FighterGazeSteer(ASVehicle_SpaceFighter F, float DeltaTime)
 {
 	local rotator SR;
-	local vector L;
-	local float YawErr, PitchErr, Roll, RollErr, K;
+	local vector L, AX, AY, AZ;
+	local float YawErr, PitchErr, Roll, Wy, Wp, Wr, K, Ang;
 
+	if ( !F.bInitialized || DeltaTime <= 0 )
+		return;
 	SR = F.GetViewRotation();
 	if ( !bFighterAimSet )
 	{
 		FighterAimDir = vector(SR);
 		bFighterAimSet = true;
 	}
-	if ( !bBtnJump && Level.TimeSeconds > DebugFreelookUntil )
-		FighterAimDir = vector(VRHeadRot);
+	if ( Level.TimeSeconds > DebugFreelookUntil )
+	{
+		if ( HandAimsVehicle() )
+			FighterAimDir = vector(VehicleHandRot());   // the right controller aims (your head looks around freely)
+		else if ( !bBtnJump )
+			FighterAimDir = vector(VRHeadRot);           // the gaze, held while the left stick click is down
+	}
 	// the crosshair in the ship's own axes: degrees right of the nose, and up
 	L = FighterAimDir << SR;
 	YawErr = Atan(L.Y, L.X) * 180.0 / 3.14159265;
 	PitchErr = Atan(L.Z, Sqrt(L.X * L.X + L.Y * L.Y)) * 180.0 / 3.14159265;
 	FighterErrYaw = YawErr;
 	FighterErrPitch = PitchErr;
-	// aTurn / aLookUp to a turn rate: the fighter turns VehicleRotationSpeed / RotationInertia rad/s per unit
-	// (0.009 / 10: 2000 units ~ 100 deg/s)
-	K = 1.0 / (0.0009 * 57.29578);
-	aTurn += FClamp(YawErr * FighterGazeGain * K, -Abs(FighterSteer) * 1.5, Abs(FighterSteer) * 1.5);
-	aLookUp += FClamp(PitchErr * FighterGazeGain * K, -Abs(FighterSteer) * 1.5, Abs(FighterSteer) * 1.5);
-	// banking: into the turn, by how far the crosshair is to the side; UT rolls the ship while aUp > 0, by aStrafe
-	// (the left stick pushed sideways strafes instead; the trigger with it rolls by hand)
+	GetAxes(SR, AX, AY, AZ);
+	// the bank: how far the wings tilt from the horizon (right wing down: positive)
+	Roll = Asin(FClamp(-AY.Z, -1, 1)) * 180.0 / 3.14159265;
 	FighterBank = FClamp(YawErr * FighterBankPerDeg, -FighterMaxBank, FighterMaxBank);
+	// the turn rates wanted (deg/s): round the world's vertical toward the crosshair, as an aircraft turns (UT's
+	// own turn / pitch / roll inputs went round the ship's tilted axes and, held in a turn, its roll cancelled
+	// itself out - the bank never came); pitch round the wings; roll toward the bank
+	Wy = FClamp(YawErr * FighterGazeGain, -150, 150);
+	Wp = FClamp(PitchErr * FighterGazeGain, -150, 150);
+	Wr = 0;
 	if ( StickAxis(StickMX) == 0 && !bBtnDodge )
-	{
-		Roll = (SR.Roll & 65535) * 360.0 / 65536.0;
-		if ( Roll > 180 )
-			Roll -= 360;
-		RollErr = FighterBank - Roll;
-		aUp = 1;
-		aStrafe = FClamp(RollErr * 150, -6000, 6000);
-	}
+		Wr = FClamp((FighterBank - Roll) * 4, -150, 150);
+	// eased in and out like UT's own turning (RotationInertia: ~0.1 s)
+	K = FMin(1, DeltaTime / 0.1);
+	FighterRate.X += (Wy - FighterRate.X) * K;
+	FighterRate.Y += (Wp - FighterRate.Y) * K;
+	FighterRate.Z += (Wr - FighterRate.Z) * K;
+	// turn the ship: right round the world's up (+), nose up round its right axis (-), right wing down round its
+	// nose (-) (Rodrigues in UE's axes)
+	Ang = FighterRate.X * DeltaTime * 3.14159265 / 180.0;
+	AX = RotAbout(AX, vect(0,0,1), Ang);
+	AY = RotAbout(AY, vect(0,0,1), Ang);
+	AZ = RotAbout(AZ, vect(0,0,1), Ang);
+	Ang = -FighterRate.Y * DeltaTime * 3.14159265 / 180.0;
+	AX = RotAbout(AX, AY, Ang);
+	AZ = RotAbout(AZ, AY, Ang);
+	Ang = -FighterRate.Z * DeltaTime * 3.14159265 / 180.0;
+	AY = RotAbout(AY, AX, Ang);
+	AZ = RotAbout(AZ, AX, Ang);
+	F.SpaceFighterRotation = QuatFromRotator(OrthoRotation(AX, AY, AZ));
+	// UT's own turning gets no input from this (the right stick, when not aiming with the controller, still adds)
+	if ( !bBtnDodge )
+		aUp = 0;
 	if ( bDebugLog && Level.TimeSeconds > NextScopeLog )
 	{
 		NextScopeLog = Level.TimeSeconds + 0.25;
-		Log("UT2004VR: fighter gaze off "$int(YawErr)$" right "$int(PitchErr)$" up, roll "$int(Roll)$" wants "$int(FighterBank)$" -> aTurn "$int(aTurn)$" aLookUp "$int(aLookUp)$" aStrafe "$int(aStrafe)$" freelook "$bBtnJump, 'UT2004VR');
+		Log("UT2004VR: fighter aim off "$int(YawErr)$" right "$int(PitchErr)$" up, bank "$int(Roll)$" wants "$int(FighterBank)$", rates turn "$int(FighterRate.X)$" pitch "$int(FighterRate.Y)$" roll "$int(FighterRate.Z)$" hand "$HandAimsVehicle(), 'UT2004VR');
 	}
 }
 
@@ -2943,8 +3006,12 @@ state PlayerSpaceFlying
 				FighterTX = StickAxis(StickTX);
 				FighterTY = StickAxis(StickTY);
 			}
-			aTurn += FighterTX * Abs(FighterSteer);
-			aLookUp += FighterTY * FighterSteer;
+			// (aiming with the controller, the right stick does nothing)
+			if ( !HandAimsVehicle() )
+			{
+				aTurn += FighterTX * Abs(FighterSteer);
+				aLookUp += FighterTY * FighterSteer;
+			}
 			if ( bFighterGazeSteer && ASVehicle_SpaceFighter(Pawn) != None )
 				FighterGazeSteer(ASVehicle_SpaceFighter(Pawn), DeltaTime);
 			if ( bDebugLog && (StickTX != 0 || StickTY != 0) && Level.TimeSeconds > NextCineLog )
@@ -3066,6 +3133,8 @@ function GazeVehicleRotation()
 {
 	local rotator G;
 	G = VRHeadRot;
+	if ( HandAimsVehicle() )
+		G = VehicleHandRot();   // the right controller aims (your head looks around freely)
 	G.Roll = 0;
 	if ( Vehicle(Pawn).bPCRelativeFPRotation )
 		G = rotator(vector(G) << Pawn.Rotation);
@@ -3978,14 +4047,24 @@ state PlayerTurreting
 // lands there despite the gun's offset), closing the gap over ASTurretFollow seconds through its own inertia
 function SteerASTurret(ASTurret T, float DeltaTime)
 {
-	local vector HitL, HitN, End;
+	local vector HitL, HitN, End, Start;
 	local rotator Want, Err;
 	local float K;
 
 	if ( DeltaTime <= 0 || T.RotationSpeed <= 0 )
 		return;
-	End = VRHeadWorld + vector(VRHeadRot) * 20000;
-	if ( T.Trace(HitL, HitN, End, VRHeadWorld, true) == None )
+	// toward what you aim at: the right controller (bVehicleHandAim), else your gaze
+	if ( HandAimsVehicle() )
+	{
+		Start = VehicleHandLoc();
+		End = Start + vector(VehicleHandRot()) * 20000;
+	}
+	else
+	{
+		Start = VRHeadWorld;
+		End = VRHeadWorld + vector(VRHeadRot) * 20000;
+	}
+	if ( T.Trace(HitL, HitN, End, Start, true) == None )
 		HitL = End;
 	Want = rotator(HitL - T.GetFireStart());
 	Err = Normalize(Want - T.Rotation);
@@ -5344,6 +5423,7 @@ defaultproperties
 	FighterSteer=2000
 	FighterInertia=0
 	bFighterGazeSteer=true
+	bVehicleHandAim=true
 	FighterGazeGain=3.0
 	FighterBankPerDeg=1.5
 	FighterMaxBank=45
