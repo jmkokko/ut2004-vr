@@ -102,7 +102,8 @@ function DrawAssault(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, 
 // (bAt: at P instead - a space fighter aimed with the controller: its crosshair where the controller points)
 function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedTexture Tex, vector Loc, rotator Rot, optional bool bAt, optional vector P)
 {
-	local vector HL, HN;
+	local vector HL, HN, GHL, GHN;
+	local bool bOnTarget;
 	local float PX, PY, R, TX, TY;
 	local color W, G;
 
@@ -120,7 +121,13 @@ function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedText
 	W.R = 255; W.G = 255; W.B = 255; W.A = 255;
 	Tex.DrawTile(PX - TX * 0.5, PY - TY * 0.5, TX, TY, 0, 0, V.DefaultCrosshair.MaterialUSize(), V.DefaultCrosshair.MaterialVSize(),
 		V.DefaultCrosshair, W);
-	if ( !bAt && V.CrosshairHitFeedbackTex != None && V.WeaponHitsCrosshairsHL() )
+	// the green "on target" ring, as UT draws it: the guns hit where the crosshair is (at P: the ship's guns
+	// line up with the controller's crosshair, within 2 deg)
+	if ( bAt && V.CrosshairHitFeedbackTex != None && V.CalcWeaponFire(GHL, GHN) != None )
+		bOnTarget = (Normal(GHL - PC.VRHeadWorld) dot Normal(P - PC.VRHeadWorld)) > 0.9994;
+	else if ( bAt && V.CrosshairHitFeedbackTex != None )
+		bOnTarget = (vector(V.GetViewRotation()) dot Normal(P - PC.VRHeadWorld)) > 0.9994;
+	if ( (bAt && bOnTarget) || (!bAt && V.CrosshairHitFeedbackTex != None && V.WeaponHitsCrosshairsHL()) )
 	{
 		G.R = 0; G.G = 255; G.B = 0; G.A = 192;
 		Tex.DrawTile(PX - 16 * R, PY - 16 * R, 32 * R, 32 * R, 0, 0, V.CrosshairHitFeedbackTex.MaterialUSize(),
@@ -216,8 +223,8 @@ function DrawONSCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex,
 
 	bTraced = PC.VehicleAimTrace(Start, Dir, HL, W, bHit);
 	// aimed with the controller: the crosshair is where it points (the gun turns there)
-	if ( bTraced && PC.HandAimsVehicle() )
-		HL = PC.HandAimPoint();
+	if ( bTraced && PC.AimsApartFromGaze() )
+		HL = PC.VehicleAimPoint();
 	bSeen = bTraced && InView(PC, Tex, HL, Loc, Rot, PX, PY);
 	if ( PC.bDebugLog && PC.Level.TimeSeconds > NextAimLog )
 	{

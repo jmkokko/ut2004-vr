@@ -105,7 +105,8 @@ var config float BehindRight;       // ...and this far to the right (m; over the
 var bool     bTPGun;                // behind view: the gun hangs in the character's hand (UT's attachment)
 var config float VehicleTurnDegPerSec;   // controller mode: the right stick left / right turns Manta, Raptor and Cicada (the vehicles that face your view) this fast
 var config bool  bVehicleHandAim;    // controller mode: flying vehicles (space fighters, Raptor, Cicada) and turrets / gunner seats aim with the right controller, as a weapon does; your head looks around freely
-var rotator VehRefR, VehCamR;        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
+var rotator VehRefR, VehCamR;
+var rotator KBMAimRot;              // keyboard/mouse mode in a vehicle: UT's own camera rotation (the mouse's aim)        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
 var config bool  bFighterGazeSteer;  // controller mode, Assault's space fighters: the ship turns toward your gaze (the steering crosshair), banking into the turn; hold the left stick click for freelook
 var config float FighterGazeGain;    // ... turn rate per degree the crosshair is off the nose (deg/s per deg)
 var config float FighterBankPerDeg;  // ... bank (deg) per degree the crosshair is to the side, up to FighterMaxBank
@@ -1602,6 +1603,46 @@ simulated function rotator GunRot()
 simulated function bool KBMTurret()
 {
 	return bKeyboardMouse && VRActive() && (ASTurret(Pawn) != None || ONSWeaponPawn(Pawn) != None);
+}
+
+// keyboard/mouse mode in any vehicle: the mouse aims it (UT's own view rotation steers the guns), your head looks
+simulated function bool KBMVehicle()
+{
+	return bKeyboardMouse && VRActive() && Vehicle(Pawn) != None;
+}
+
+// where you aim in a vehicle, when it isn't your gaze: the right controller (controller mode) or the mouse
+// (keyboard mode, along UT's own camera rotation from your eyes); the crosshair goes there
+simulated function bool AimsApartFromGaze()
+{
+	return HandAimsVehicle() || KBMVehicle();
+}
+
+simulated function vector VehicleAimPoint()
+{
+	local vector S, D, End, HL, HN;
+	local Actor A;
+	local Vehicle B;
+	local int i;
+
+	if ( HandAimsVehicle() )
+		return HandAimPoint();
+	S = VRHeadWorld;
+	D = vector(KBMAimRot);
+	End = S + D * 20000;
+	B = Vehicle(Pawn);
+	if ( ONSWeaponPawn(Pawn) != None && ONSWeaponPawn(Pawn).VehicleBase != None )
+		B = ONSWeaponPawn(Pawn).VehicleBase;
+	for ( i = 0; i < 6; i++ )
+	{
+		A = Pawn.Trace(HL, HN, End, S, true);
+		if ( A == None )
+			return End;
+		if ( A != Pawn && A != B && A.Base != Pawn && A.Base != B && A.Owner != Pawn && A.Owner != B )
+			return HL;
+		S = HL + D * 16;
+	}
+	return End;
 }
 
 // controller mode: the right controller aims every vehicle and seat (bVehicleHandAim), as it aims a weapon - the
@@ -3124,6 +3165,10 @@ function SetPawnClass(string inClass, string inCharacter)
 // ---------------------------------------------------------------------------
 event PlayerCalcView(out actor ViewActor, out vector CameraLocation, out rotator CameraRotation)
 {
+	local Actor UTViewActor;
+	local vector UTCamLoc;
+	local rotator UTCamRot;
+
 	if ( !VRActive() || Pawn == None || ViewTarget != Pawn || (bBehindView && Vehicle(Pawn) == None) )
 	{
 		Super.PlayerCalcView(ViewActor, CameraLocation, CameraRotation);
@@ -3158,6 +3203,14 @@ event PlayerCalcView(out actor ViewActor, out vector CameraLocation, out rotator
 	{
 		if ( HandAimsVehicle() )
 			CameraRotation = VehicleHandRot();
+		else if ( KBMVehicle() )
+		{
+			// keyboard/mouse: the mouse's aim, as UT's own first-person camera turns with it (relative seats
+			// included); the eyes stay at your head
+			Super.PlayerCalcView(UTViewActor, UTCamLoc, UTCamRot);
+			KBMAimRot = UTCamRot;
+			CameraRotation = UTCamRot;
+		}
 		CameraRotation.Roll = 0;
 	}
 	CacheCalcView(ViewActor, CameraLocation, CameraRotation);
@@ -4049,6 +4102,13 @@ simulated function int VehicleViewYaw()
 	local float DT;
 	if ( !Vehicle(Pawn).bFollowLookDir || ONSWeaponPawn(Pawn) != None )
 		return VehicleFrame().Yaw;
+	// keyboard/mouse: they turn toward the mouse's aim; your view turns with the mouse, as on foot
+	if ( KBMVehicle() )
+	{
+		VehViewYaw = Rotation.Yaw;
+		LastViewYawT = Level.TimeSeconds;
+		return Rotation.Yaw;
+	}
 	DT = FClamp(Level.TimeSeconds - LastViewYawT, 0, 0.1);
 	LastViewYawT = Level.TimeSeconds;
 	D = (Pawn.Rotation.Yaw - int(VehViewYaw)) & 65535;
@@ -4075,7 +4135,7 @@ state PlayerTurreting
 		if ( VRActive() && ASTurret(Pawn) != None && !KBMTurret() )
 			SteerASTurret(ASTurret(Pawn), DeltaTime);
 		Super.PlayerMove(DeltaTime);
-		if ( VRActive() && Vehicle(Pawn) != None && ASTurret(Pawn) == None && !KBMTurret() )
+		if ( VRActive() && Vehicle(Pawn) != None && ASTurret(Pawn) == None && !KBMTurret() && !KBMVehicle() )
 			GazeVehicleRotation();
 	}
 }
@@ -4177,9 +4237,12 @@ state PlayerWalking
 // in VR the mouse only turns the playspace (handy at the desk without controllers)
 function UpdateRotation(float DeltaTime, float maxPitch)
 {
-	// keyboard/mouse mode on a turret or gunner seat: the mouse aims it, at once, as in 2D (your head only looks)
-	if ( KBMTurret() )
+	// keyboard/mouse mode in a vehicle, turret or gunner seat: the mouse aims it, at once, as in 2D (your head only
+	// looks around)
+	if ( KBMTurret() || KBMVehicle() )
 	{
+		if ( Level.TimeSeconds < DebugTurnUntil && !IsInState('PlayerTurreting') )
+			aTurn = DebugTurn;   // (debug: VRMouseTurn)
 		Super.UpdateRotation(DeltaTime, maxPitch);
 		return;
 	}
@@ -4872,8 +4935,8 @@ function DrawVehicleCrosshair(ScriptedTexture Tex, vector Loc, rotator Rot)
 
 	if ( bVehicleLaser || !VehicleAimTrace(Start, Dir, HitL, W, bHit) )
 		return;
-	if ( HandAimsVehicle() )
-		HitL = HandAimPoint();   // aimed with the controller: where it points
+	if ( AimsApartFromGaze() )
+		HitL = VehicleAimPoint();   // aimed with the controller / the mouse: where it points
 	if ( !HudProject(Tex, HitL, Loc, Rot, PX, PY) )
 		return;
 	S = Tex.USize * 0.003;
