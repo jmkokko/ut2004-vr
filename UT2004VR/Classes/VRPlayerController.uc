@@ -4599,7 +4599,8 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 		if ( !VRHUD(myHUD).WantScores(self) )
 			Markers.DrawONSCrosshair(self, VRHUD(myHUD).Shadow, Tex, Loc, Rot);
 	}
-	else if ( Vehicle(Pawn) != None )
+	// (Assault's vehicles and turrets with the original HUD: their own crosshair, VRGameMarkers - not this one too)
+	else if ( Vehicle(Pawn) != None && !(UsingOriginalHud() && ASVehicle(Pawn) != None) )
 		DrawVehicleCrosshair(Tex, Loc, Rot);
 	if ( HudBig != None && !bVRScoreboardOriginal && (bShowVRScores || (myHUD != None && myHUD.bShowScoreBoard)) )
 		DrawVRScores(Tex, Loc, Rot);
