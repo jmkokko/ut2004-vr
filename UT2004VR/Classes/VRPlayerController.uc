@@ -106,7 +106,8 @@ var bool     bTPGun;                // behind view: the gun hangs in the charact
 var config float VehicleTurnDegPerSec;   // controller mode: the right stick left / right turns Manta, Raptor and Cicada (the vehicles that face your view) this fast
 var config bool  bVehicleHandAim;    // controller mode: flying vehicles (space fighters, Raptor, Cicada) and turrets / gunner seats aim with the right controller, as a weapon does; your head looks around freely
 var rotator VehRefR, VehCamR;
-var rotator KBMAimRot;              // keyboard/mouse mode in a vehicle: UT's own camera rotation (the mouse's aim)        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
+var rotator KBMAimRot, KBMStartRot;
+var bool   bKBMAimInit;              // a new vehicle in keyboard/mouse mode: the mouse's aim starts at your gaze              // keyboard/mouse mode in a vehicle: UT's own camera rotation (the mouse's aim)        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
 var config bool  bFighterGazeSteer;  // controller mode, Assault's space fighters: the ship turns toward your gaze (the steering crosshair), banking into the turn; hold the left stick click for freelook
 var config float FighterGazeGain;    // ... turn rate per degree the crosshair is off the nose (deg/s per deg)
 var config float FighterBankPerDeg;  // ... bank (deg) per degree the crosshair is to the side, up to FighterMaxBank
@@ -1463,6 +1464,7 @@ simulated function UpdateHeadWorld()
 			TurretEntryYaw = Pawn.Rotation.Yaw;
 			VehViewYaw = Pawn.Rotation.Yaw;
 			bFighterAimSet = false;
+			bKBMAimInit = true;
 			LastViewYawT = Level.TimeSeconds;
 			VehAnchor = HeadPos;
 			if ( bChairYawValid )
@@ -1603,6 +1605,16 @@ simulated function rotator GunRot()
 simulated function bool KBMTurret()
 {
 	return bKeyboardMouse && VRActive() && (ASTurret(Pawn) != None || ONSWeaponPawn(Pawn) != None);
+}
+
+// keyboard/mouse mode in a vehicle: the mouse's aim in the world (seats that keep it relative to the vehicle,
+// bPCRelativeFPRotation, turned out of the vehicle's frame - GazeVehicleRotation's inverse). (UT's own
+// PlayerCalcView would return the view cached from this one: the aim never moved)
+simulated function rotator MouseAimRot()
+{
+	if ( Vehicle(Pawn) != None && Vehicle(Pawn).bPCRelativeFPRotation )
+		return rotator(vector(Rotation) >> Pawn.Rotation);
+	return Rotation;
 }
 
 // keyboard/mouse mode in any vehicle: the mouse aims it (UT's own view rotation steers the guns), your head looks
@@ -3165,10 +3177,6 @@ function SetPawnClass(string inClass, string inCharacter)
 // ---------------------------------------------------------------------------
 event PlayerCalcView(out actor ViewActor, out vector CameraLocation, out rotator CameraRotation)
 {
-	local Actor UTViewActor;
-	local vector UTCamLoc;
-	local rotator UTCamRot;
-
 	if ( !VRActive() || Pawn == None || ViewTarget != Pawn || (bBehindView && Vehicle(Pawn) == None) )
 	{
 		Super.PlayerCalcView(ViewActor, CameraLocation, CameraRotation);
@@ -3205,11 +3213,9 @@ event PlayerCalcView(out actor ViewActor, out vector CameraLocation, out rotator
 			CameraRotation = VehicleHandRot();
 		else if ( KBMVehicle() )
 		{
-			// keyboard/mouse: the mouse's aim, as UT's own first-person camera turns with it (relative seats
-			// included); the eyes stay at your head
-			Super.PlayerCalcView(UTViewActor, UTCamLoc, UTCamRot);
-			KBMAimRot = UTCamRot;
-			CameraRotation = UTCamRot;
+			// keyboard/mouse: the mouse's aim (UT's camera turns with it); the eyes stay at your head
+			KBMAimRot = MouseAimRot();
+			CameraRotation = KBMAimRot;
 		}
 		CameraRotation.Roll = 0;
 	}
@@ -4102,13 +4108,6 @@ simulated function int VehicleViewYaw()
 	local float DT;
 	if ( !Vehicle(Pawn).bFollowLookDir || ONSWeaponPawn(Pawn) != None )
 		return VehicleFrame().Yaw;
-	// keyboard/mouse: they turn toward the mouse's aim; your view turns with the mouse, as on foot
-	if ( KBMVehicle() )
-	{
-		VehViewYaw = Rotation.Yaw;
-		LastViewYawT = Level.TimeSeconds;
-		return Rotation.Yaw;
-	}
 	DT = FClamp(Level.TimeSeconds - LastViewYawT, 0, 0.1);
 	LastViewYawT = Level.TimeSeconds;
 	D = (Pawn.Rotation.Yaw - int(VehViewYaw)) & 65535;
@@ -4241,6 +4240,16 @@ function UpdateRotation(float DeltaTime, float maxPitch)
 	// looks around)
 	if ( KBMTurret() || KBMVehicle() )
 	{
+		// just in: the mouse's aim starts where you look (it pointed anywhere, often off-screen)
+		if ( bKBMAimInit )
+		{
+			bKBMAimInit = false;
+			KBMStartRot = VRHeadRot;
+			KBMStartRot.Roll = 0;
+			if ( Vehicle(Pawn).bPCRelativeFPRotation )
+				KBMStartRot = rotator(vector(KBMStartRot) << Pawn.Rotation);
+			SetRotation(KBMStartRot);
+		}
 		if ( Level.TimeSeconds < DebugTurnUntil && !IsInState('PlayerTurreting') )
 			aTurn = DebugTurn;   // (debug: VRMouseTurn)
 		Super.UpdateRotation(DeltaTime, maxPitch);

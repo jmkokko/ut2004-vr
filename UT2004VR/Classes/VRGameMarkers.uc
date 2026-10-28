@@ -229,7 +229,7 @@ function DrawONSCrosshair(VRPlayerController PC, HudBase H, ScriptedTexture Tex,
 	if ( PC.bDebugLog && PC.Level.TimeSeconds > NextAimLog )
 	{
 		NextAimLog = PC.Level.TimeSeconds + 1.0;
-		Log("UT2004VR: ons crosshair "$PC.Pawn.Class.Name$" gun "$W$" traced "$bTraced$" in view "$bSeen$" at "$int(PX)$","$int(PY)$" of "$Tex.USize$" muzzle "$Start$" aim "$rotator(Dir)$" eyes "$PC.VRHeadWorld$" gaze "$PC.VRHeadRot$" hit "$bHit$" "$int(VSize(HL - Start))$" uu crosshair "$PC.myHUD.bCrosshairShow$" correct "$(W != None && W.bCorrectAim), 'UT2004VR');
+		Log("UT2004VR: ons crosshair "$PC.Pawn.Class.Name$" gun "$W$" traced "$bTraced$" in view "$bSeen$" at "$int(PX)$","$int(PY)$" of "$Tex.USize$" muzzle "$Start$" aim "$rotator(Dir)$" eyes "$PC.VRHeadWorld$" gaze "$PC.VRHeadRot$" hit "$bHit$" "$int(VSize(HL - Start))$" uu crosshair "$PC.myHUD.bCrosshairShow$" correct "$(W != None && W.bCorrectAim)$" mouse aim "$PC.KBMAimRot$" rotation "$PC.Rotation$" state "$PC.GetStateName(), 'UT2004VR');
 	}
 	if ( !bSeen )
 		return;
