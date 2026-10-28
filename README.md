@@ -38,7 +38,7 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |
 | Right trigger / grip | Fire / alt-fire |
 | **In a space fighter** (Assault) | |
-| Right controller | Aims the steering crosshair, as with a weapon: the ship turns toward it, faster the further it is off the nose (`FighterGazeGain=3` deg/s per deg), round the world's vertical like an aircraft, banking into the turn (`FighterBankPerDeg=1.5`, up to `FighterMaxBank=45`) and levelling out on target. Your head looks around freely |
+| Right controller | Aims: the fighter's crosshair (the only one) follows where it points, as with a weapon; the ship turns toward it, faster the further it is off the nose (`FighterGazeGain=3` deg/s per deg), round the world's vertical like an aircraft, banking into the turn (`FighterBankPerDeg=1.5`, up to `FighterMaxBank=45`) and levelling out on target. Your head looks around freely |
 | Left stick | Throttle (forward / back) and strafe |
 | Left trigger + left stick left/right | Roll by hand; left grip levels the wings |
 | Right stick | Nothing while the controller aims (`bVehicleHandAim=False`: pitch and yaw, as the mouse does, `FighterSteer=2000`) |

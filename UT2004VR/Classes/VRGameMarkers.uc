@@ -99,7 +99,8 @@ function DrawAssault(VRPlayerController PC, HUD_Assault H, ScriptedTexture Tex, 
 
 // an Assault vehicle's / turret's crosshair (ASVehicle.SpecialDrawCrosshair): at the point its gun hits, with the
 // green square when the shot will reach it; the captured HUD leaves it out (it sits at a screen position)
-function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedTexture Tex, vector Loc, rotator Rot)
+// (bAt: at P instead - a space fighter aimed with the controller: its crosshair where the controller points)
+function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedTexture Tex, vector Loc, rotator Rot, optional bool bAt, optional vector P)
 {
 	local vector HL, HN;
 	local float PX, PY, R, TX, TY;
@@ -107,7 +108,9 @@ function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedText
 
 	if ( V.Health < 1 || V.DefaultCrosshair == None )
 		return;
-	if ( V.CalcWeaponFire(HL, HN) == None )
+	if ( bAt )
+		HL = P;
+	else if ( V.CalcWeaponFire(HL, HN) == None )
 		HL = V.GetCrosshairWorldLocation();
 	if ( !InView(PC, Tex, HL, Loc, Rot, PX, PY) )
 		return;
@@ -117,7 +120,7 @@ function DrawASVehicleCrosshair(VRPlayerController PC, ASVehicle V, ScriptedText
 	W.R = 255; W.G = 255; W.B = 255; W.A = 255;
 	Tex.DrawTile(PX - TX * 0.5, PY - TY * 0.5, TX, TY, 0, 0, V.DefaultCrosshair.MaterialUSize(), V.DefaultCrosshair.MaterialVSize(),
 		V.DefaultCrosshair, W);
-	if ( V.CrosshairHitFeedbackTex != None && V.WeaponHitsCrosshairsHL() )
+	if ( !bAt && V.CrosshairHitFeedbackTex != None && V.WeaponHitsCrosshairsHL() )
 	{
 		G.R = 0; G.G = 255; G.B = 0; G.A = 192;
 		Tex.DrawTile(PX - 16 * R, PY - 16 * R, 32 * R, 32 * R, 0, 0, V.CrosshairHitFeedbackTex.MaterialUSize(),

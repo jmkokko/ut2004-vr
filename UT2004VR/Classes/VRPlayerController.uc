@@ -1598,6 +1598,12 @@ simulated function rotator GunRot()
 	return OrthoRotation(X2, Y, Z2);
 }
 
+// keyboard/mouse mode on a turret or gunner seat (Assault's turrets, ONSWeaponPawn): the mouse aims it
+simulated function bool KBMTurret()
+{
+	return bKeyboardMouse && VRActive() && (ASTurret(Pawn) != None || ONSWeaponPawn(Pawn) != None);
+}
+
 // controller mode: the vehicles and seats the right controller aims (bVehicleHandAim): space fighters, the Raptor
 // and Cicada (flying, they turn toward the aim), Assault's turrets and every gunner seat / turret (ONSWeaponPawn)
 simulated function bool HandAimsVehicle()
@@ -4026,19 +4032,20 @@ state PlayerTurreting
 {
 	function PlayerMove(float DeltaTime)
 	{
-		// the seat would turn with the mouse: not in VR (the gun aims where you look)
-		if ( VRActive() )
+		// the seat would turn with the mouse: not in VR (the gun aims where you look / the controller points);
+		// keyboard/mouse mode: the mouse aims, as in 2D
+		if ( VRActive() && !KBMTurret() )
 		{
 			aTurn = 0;
 			aLookUp = 0;
-			if ( Level.TimeSeconds < DebugTurnUntil )
-				aTurn = DebugTurn;
 		}
+		if ( Level.TimeSeconds < DebugTurnUntil )
+			aTurn = DebugTurn;   // (debug: VRMouseTurn, as the mouse would)
 		// Assault's turrets turn only from this input (their own Rotation is the aim): steer them toward the gaze
-		if ( VRActive() && ASTurret(Pawn) != None )
+		if ( VRActive() && ASTurret(Pawn) != None && !KBMTurret() )
 			SteerASTurret(ASTurret(Pawn), DeltaTime);
 		Super.PlayerMove(DeltaTime);
-		if ( VRActive() && Vehicle(Pawn) != None && ASTurret(Pawn) == None )
+		if ( VRActive() && Vehicle(Pawn) != None && ASTurret(Pawn) == None && !KBMTurret() )
 			GazeVehicleRotation();
 	}
 }
@@ -4140,6 +4147,12 @@ state PlayerWalking
 // in VR the mouse only turns the playspace (handy at the desk without controllers)
 function UpdateRotation(float DeltaTime, float maxPitch)
 {
+	// keyboard/mouse mode on a turret or gunner seat: the mouse aims it, at once, as in 2D (your head only looks)
+	if ( KBMTurret() )
+	{
+		Super.UpdateRotation(DeltaTime, maxPitch);
+		return;
+	}
 	if ( VRActive() && Vehicle(Pawn) != None )
 	{
 		GazeVehicleRotation();
@@ -4616,11 +4629,15 @@ function DrawVRHud(ScriptedTexture Tex, vector Loc, rotator Rot)
 			Markers = new class'VRGameMarkers';
 		if ( HUD_Assault(VRHUD(myHUD).Shadow) != None )
 			Markers.DrawAssault(self, HUD_Assault(VRHUD(myHUD).Shadow), Tex, Loc, Rot);
-		if ( ASVehicle(Pawn) != None )
+		// one crosshair: a space fighter aimed with the controller has it where the controller points (the ship
+		// turns toward it); otherwise where the vehicle's gun aims
+		if ( ASVehicle_SpaceFighter(Pawn) != None && bFighterGazeSteer && HandAimsVehicle() && bFighterAimSet )
+			Markers.DrawASVehicleCrosshair(self, ASVehicle(Pawn), Tex, Loc, Rot, true, VRHeadWorld + FighterAimDir * 20000);
+		else if ( ASVehicle(Pawn) != None )
 			Markers.DrawASVehicleCrosshair(self, ASVehicle(Pawn), Tex, Loc, Rot);
 		if ( ASVehicle_SpaceFighter(Pawn) != None && HUD_Assault(VRHUD(myHUD).Shadow) != None )
 			Markers.DrawFighterTarget(self, ASVehicle_SpaceFighter(Pawn), HUD_Assault(VRHUD(myHUD).Shadow), Tex, Loc, Rot);
-		if ( ASVehicle_SpaceFighter(Pawn) != None && bFighterGazeSteer && !bKeyboardMouse && bFighterAimSet )
+		if ( ASVehicle_SpaceFighter(Pawn) != None && bFighterGazeSteer && !bKeyboardMouse && bFighterAimSet && !HandAimsVehicle() )
 			Markers.DrawSteerCrosshair(self, VRHUD(myHUD).Shadow, Tex, Loc, Rot, VRHeadWorld + FighterAimDir * 20000);
 		return;
 	}
