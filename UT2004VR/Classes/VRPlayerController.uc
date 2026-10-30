@@ -107,6 +107,8 @@ var config float VehicleTurnDegPerSec;   // controller mode: the right stick lef
 var config bool  bVehicleHandAim;    // controller mode: flying vehicles (space fighters, Raptor, Cicada) and turrets / gunner seats aim with the right controller, as a weapon does; your head looks around freely
 var rotator VehRefR, VehCamR;
 var rotator KBMAimRot, KBMStartRot;
+var float  TurretPanYaw;             // turrets: the seat's view turned this far (uu) by the crosshair at the view's edge
+var config float TurretEdgeDeg, TurretEdgeTurn, TurretEdgeMaxDegPerSec;
 var bool   bKBMAimInit;              // a new vehicle in keyboard/mouse mode: the mouse's aim starts at your gaze              // keyboard/mouse mode in a vehicle: UT's own camera rotation (the mouse's aim)        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
 var config bool  bFighterGazeSteer;  // controller mode, Assault's space fighters: the ship turns toward your gaze (the steering crosshair), banking into the turn; hold the left stick click for freelook
 var config float FighterGazeGain;    // ... turn rate per degree the crosshair is off the nose (deg/s per deg)
@@ -419,6 +421,8 @@ event PlayerTick(float DeltaTime)
 	TuneVehicleGuns();
 	if ( Vehicle(Pawn) != None && VRActive() && !bKeyboardMouse )
 		VRVehicleButtons();
+	if ( Vehicle(Pawn) != None && VRActive() )
+		TurretEdgePan(DeltaTime);
 	if ( Vehicle(Pawn) != None && VRActive() )
 	{
 		// the hand-held gun stays behind while you drive; the laser comes from the vehicle's gun
@@ -1465,6 +1469,7 @@ simulated function UpdateHeadWorld()
 			VehViewYaw = Pawn.Rotation.Yaw;
 			bFighterAimSet = false;
 			bKBMAimInit = true;
+			TurretPanYaw = 0;
 			LastViewYawT = Level.TimeSeconds;
 			VehAnchor = HeadPos;
 			if ( bChairYawValid )
@@ -4064,11 +4069,14 @@ simulated function rotator SeatFrame()
 simulated function rotator VehicleFrame()
 {
 	local rotator R;
+	// (turrets and gunner seats: turned by TurretPanYaw, when the crosshair reaches the edge of your view)
 	if ( ONSWeaponPawn(Pawn) != None )
 	{
 		if ( ONSWeaponPawn(Pawn).VehicleBase != None )
-			return ONSWeaponPawn(Pawn).VehicleBase.Rotation;
-		R.Yaw = TurretEntryYaw;
+			R = ONSWeaponPawn(Pawn).VehicleBase.Rotation;
+		else
+			R.Yaw = TurretEntryYaw;
+		R.Yaw += int(TurretPanYaw);
 		return R;
 	}
 	// Assault turrets turn toward your gaze (SteerASTurret): a frame turning with them would lead them on forever
@@ -4078,9 +4086,37 @@ simulated function rotator VehicleFrame()
 			R.Yaw = ASTurret(Pawn).TurretBase.Rotation.Yaw;
 		else
 			R.Yaw = TurretEntryYaw;
+		R.Yaw += int(TurretPanYaw);
 		return R;
 	}
 	return Pawn.Rotation;
+}
+
+// turrets and gunner seats, aimed apart from your gaze (the mouse, the controller): when the crosshair nears the
+// side of your view (TurretEdgeDeg from where you look) the seat's view turns slowly toward it - faster the further
+// past (TurretEdgeTurn deg/s per deg, up to TurretEdgeMaxDegPerSec) - until it is back inside. Your head still looks
+// around freely; with the controller, pointing to the edge keeps it turning (your hand turns with the seat).
+function TurretEdgePan(float DeltaTime)
+{
+	local vector L;
+	local float Yaw, Over, Rate;
+
+	if ( TurretEdgeMaxDegPerSec <= 0 || !(ASTurret(Pawn) != None || ONSWeaponPawn(Pawn) != None) || !AimsApartFromGaze() )
+		return;
+	L = (VehicleAimPoint() - VRHeadWorld) << VRHeadRot;
+	Yaw = Atan(L.Y, L.X) * 180.0 / 3.14159265;
+	Over = Abs(Yaw) - TurretEdgeDeg;
+	if ( Over <= 0 )
+		return;
+	Rate = FMin(Over * TurretEdgeTurn, TurretEdgeMaxDegPerSec);
+	if ( Yaw < 0 )
+		Rate = -Rate;
+	TurretPanYaw += Rate * DeltaTime * 65536.0 / 360.0;
+	if ( bDebugLog && Abs(Rate) >= 1 && Level.TimeSeconds > NextScopeLog )
+	{
+		NextScopeLog = Level.TimeSeconds + 0.25;
+		Log("UT2004VR: turret edge pan: crosshair "$int(Yaw)$" deg from your view, turning "$int(Rate)$" deg/s, pan "$int(TurretPanYaw * 360.0 / 65536.0)$" deg", 'UT2004VR');
+	}
 }
 
 // The view's heading in a vehicle. Vehicles that turn toward the view (Manta, Raptor: bFollowLookDir) turn toward
@@ -5550,6 +5586,9 @@ defaultproperties
 	FighterBankPerDeg=1.5
 	FighterMaxBank=45
 	VehicleTurnDegPerSec=120
+	TurretEdgeDeg=35
+	TurretEdgeTurn=3
+	TurretEdgeMaxDegPerSec=45
 	RedeemerSteer=2000
 	BehindDistance=1.8
 	BehindHeight=0.45
