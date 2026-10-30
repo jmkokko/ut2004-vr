@@ -290,7 +290,9 @@ var float  StickMX, StickMY, StickTX, StickTY;
 var bool   bBtnJump, bBtnCrouch, bBtnMenu;
 var string TapBtn;                 // debug: VRTapBtn
 var float  TapBtnUntil;
-var bool   bBtnUse, bOldUse;      // the right stick click: use (enter / leave a vehicle)
+var bool   bBtnUse, bOldUse;
+var bool   bBtnHorn;
+var config bool bJumpOnStickClick;     // old bindings with jump on the left stick click: ignore clicks while the stick is pushed                // the left stick click: the horn in a vehicle (jump is on the left grip)      // the right stick click: use (enter / leave a vehicle)
 var bool   bOldVehJump, bOldVehDodge, bOldVehNext, bOldVehPrev, bOldVehFire, bOldVehAlt;
 var bool   bOldJump, bOldCrouch;
 
@@ -1136,6 +1138,8 @@ function VRPacket(string Text)
 		}
 		if ( n >= 15 )
 			bBtnUse = P[14] == "1";
+		if ( n >= 16 )
+			bBtnHorn = P[15] == "1";
 		break;
 	case "Z":
 		// SteamVR's seated calibration (as SteamVR Home uses it)
@@ -2787,6 +2791,7 @@ function SetTapBtn(bool bOn)
 	{
 	case "USE": bBtnUse = bOn; break;
 	case "JUMP": bBtnJump = bOn; break;
+	case "HORN": bBtnHorn = bOn; break;
 	case "NEXT": bBtnNext = bOn; break;
 	case "PREV": bBtnPrev = bOn; break;
 	case "DODGE": bBtnDodge = bOn; break;
@@ -2906,7 +2911,7 @@ function VRVehicleButtons()
 		NextWeapon();
 	if ( bBtnPrev && !bOldVehPrev )
 		PrevWeapon();
-	if ( bBtnJump && !bOldVehJump && !(bFighterGazeSteer && ASVehicle_SpaceFighter(Pawn) != None && !HandAimsVehicle()) )
+	if ( bBtnHorn && !bOldVehJump && !(bFighterGazeSteer && ASVehicle_SpaceFighter(Pawn) != None && !HandAimsVehicle()) )
 	{
 		Log("UT2004VR: horn (controller) "$Pawn.Class.Name, 'UT2004VR');
 		PlayVehicleHorn(0);
@@ -2920,7 +2925,7 @@ function VRVehicleButtons()
 	bOldVehAlt = bBtnAlt;
 	bOldVehNext = bBtnNext;
 	bOldVehPrev = bBtnPrev;
-	bOldVehJump = bBtnJump;
+	bOldVehJump = bBtnHorn;
 	bOldUse = bBtnUse;
 	// on foot again, the same press must not count there as a new one
 	bOldFire = bBtnFire;
@@ -2928,6 +2933,12 @@ function VRVehicleButtons()
 	bOldNext = bBtnNext;
 	bOldPrev = bBtnPrev;
 	bOldJump = bBtnJump;
+}
+
+// crouch is held: the crouch action (unbound by default) or the right stick pulled back
+simulated function bool CrouchHeld()
+{
+	return bBtnCrouch || StickTY < -0.6 || (Level.TimeSeconds < DebugStickUntil && DebugStickY < -0.6);   // (debug: VRStick)
 }
 
 // a stick axis with a small dead zone, rescaled so it still reaches 1
@@ -2953,17 +2964,17 @@ function VRStickDrive()
 	aForward = StickAxis(StickMY) * 6000;
 	aStrafe = StickAxis(StickMX) * 6000;
 	aUp = 0;
-	if ( bBtnDodge )
+	if ( bBtnDodge || bBtnJump )
 		aUp = 6000;
-	else if ( bBtnCrouch )
+	else if ( CrouchHeld() )
 		aUp = -6000;
-	if ( bBtnCrouch )
+	if ( CrouchHeld() )
 		bDuck = 1;
 	else
 		bDuck = 0;
-	if ( bBtnDodge && !bOldVehDodge )
+	if ( (bBtnDodge || bBtnJump) && !bOldVehDodge )
 		bPressedJump = true;
-	bOldVehDodge = bBtnDodge;
+	bOldVehDodge = bBtnDodge || bBtnJump;
 	if ( bDebugLog && (aForward != 0 || aStrafe != 0 || aUp != 0) && Level.TimeSeconds > NextCrossLog )
 	{
 		NextCrossLog = Level.TimeSeconds + 0.5;
@@ -3022,7 +3033,7 @@ function FighterGazeSteer(ASVehicle_SpaceFighter F, float DeltaTime)
 	{
 		if ( HandAimsVehicle() )
 			FighterAimDir = vector(VehicleHandRot());   // the right controller aims (your head looks around freely)
-		else if ( !bBtnJump )
+		else if ( !bBtnHorn )
 			FighterAimDir = vector(VRHeadRot);           // the gaze, held while the left stick click is down
 	}
 	// the crosshair in the ship's own axes: degrees right of the nose, and up
@@ -3850,7 +3861,9 @@ function VRPlayerMove(float DeltaTime)
 
 	// jump: left stick click, only with the stick near centre (pushing the stick hard can click it by accident)
 	bJumpNow = bBtnJump && !bOldJump;
-	if ( bJumpNow && Mag >= 0.5 )
+	// (when jump was the stick click, a click while pushing the stick was taken as an accident; on the grip it
+	// is meant)
+	if ( bJumpNow && Mag >= 0.5 && bJumpOnStickClick )
 	{
 		Log("UT2004VR: jump click ignored (stick pushed "$Mag$")", 'UT2004VR');
 		bJumpNow = false;
@@ -3886,10 +3899,10 @@ function VRPlayerMove(float DeltaTime)
 		Log("UT2004VR: jump", 'UT2004VR');
 		bPressedJump = true;
 	}
-	if ( !bBtnCrouch )
+	if ( !CrouchHeld() )
 		bCrouchSuppressed = false;
-	bOldCrouch = bBtnCrouch;
-	bCrouchNow = (bBtnCrouch && !bCrouchSuppressed) || HeadPos.Z < CrouchHeadMeters;
+	bOldCrouch = CrouchHeld();
+	bCrouchNow = (CrouchHeld() && !bCrouchSuppressed) || HeadPos.Z < CrouchHeadMeters;
 	if ( bCrouchNow )
 		bDuck = 1;
 	else

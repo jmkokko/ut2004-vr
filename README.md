@@ -14,9 +14,9 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Input | Action |
 |---|---|
 | Left stick | Move forward/back and strafe along your chair's forward. **Seated head steering:** while moving (any direction), looking aside turns the view that way, faster the bigger the look angle (`bSteerByGaze`, `SteerGain=1.5` deg/s per degree, `SteerDeadzone=8`, `SteerMaxDegPerSec=120`); the chair's forward is set at calibration / recenter |
-| Left stick click | Jump, only with the stick near centre (clicks while pushing the stick are ignored) |
+| Left grip | Jump (in a vehicle: jump / rise) |
 | Left trigger | Dodge toward where the left stick points (left/right/forward/back); ignored with the stick centred |
-| Left grip | Crouch while held (physical crouching also works); jumping or dodging stands you up until you let go |
+| Right stick back | Crouch while held (physical crouching also works); jumping or dodging stands you up until you let go. In a vehicle: duck / descend |
 | Left Y | Menu (Esc): opens UT's menu, or closes the top menu page. **Hold for 0.8 s: recenter** (height and facing) |
 | Left X | Scoreboard on/off (also `VRScores` or UT's show-scores key, F1): UT's own scoreboard for the game type, in the HUD layer in place of the HUD, as in 2D (also while dead). Without the original HUD (`bVROriginalHud=False`) it comes on its own curved panel that stays put while it's up (`ScoreboardDistance=1.0`, `ScoreboardWidth=1.5` m in `UT2004VR_proxy.ini`); `bVRScoreboardOriginal=False` brings back the drawn VR HUD scoreboard (`ScoresWidthDeg=40`) |
 | Fire / alt-fire while spectating | Next player / back to your own camera. UT's own spectator bar ("Now viewing", name, score, how to switch) floats below eye level in front of you (`SpectatorBarDistance=1.0`, `SpectatorBarWidth=1.3`, `SpectatorBarDrop=0.3` m in `UT2004VR_proxy.ini`) |
@@ -33,7 +33,7 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Left stick | Drive and steer (forward/back = throttle, left/right = steer; hovering and flying vehicles strafe) |
 | Right controller | Every vehicle, turret and gunner seat: aims, as with a weapon - the crosshair is where it points, the guns turn there and the vehicles that face their aim (Manta, Raptor, Cicada) turn toward it; your head looks around freely (`bVehicleHandAim`; False: your gaze aims and the right stick turns the Manta, Raptor and Cicada) |
 | Left stick click | Horn |
-| Left trigger / left grip | Jump or rise (Manta, Raptor) / duck or descend |
+| Left trigger or left grip / right stick back | Jump or rise (Manta, Raptor) / duck or descend |
 | Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |
 | Right trigger / grip | Fire / alt-fire |
 | Turrets and gunner seats (both modes) | When the crosshair nears the side of your view (`TurretEdgeDeg=35` deg from where you look), the seat's view turns slowly toward it (`TurretEdgeTurn=3` deg/s per deg past it, up to `TurretEdgeMaxDegPerSec=45`; 0 = off) |

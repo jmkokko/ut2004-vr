@@ -220,7 +220,7 @@ static bool g_vrTried = false;
 static bool g_mock = false;
 static vr::VRActionSetHandle_t g_set = 0;
 static vr::VRActionHandle_t g_aMove = 0, g_aTurn = 0, g_aJump = 0, g_aCrouch = 0, g_aMenu = 0, g_aPoseL = 0, g_aPoseR = 0;
-static vr::VRActionHandle_t g_aFire = 0, g_aAlt = 0, g_aNext = 0, g_aPrev = 0, g_aDodge = 0, g_aScores = 0, g_aUse = 0;
+static vr::VRActionHandle_t g_aFire = 0, g_aAlt = 0, g_aNext = 0, g_aPrev = 0, g_aDodge = 0, g_aScores = 0, g_aUse = 0, g_aHorn = 0;
 static bool g_input = false;
 static float g_tan[2][4];            // l r t b per eye
 static float g_headFwdTan[2][2] = {}; // where the head's forward lands in each eye, in tangents (x right, y up)
@@ -306,6 +306,7 @@ static void InitInput()
 	vr::VRInput()->GetActionHandle("/actions/main/in/dodge", &g_aDodge);
 	vr::VRInput()->GetActionHandle("/actions/main/in/scoreboard", &g_aScores);
 	vr::VRInput()->GetActionHandle("/actions/main/in/use", &g_aUse);
+	vr::VRInput()->GetActionHandle("/actions/main/in/horn", &g_aHorn);
 	vr::VRInput()->GetActionHandle("/actions/main/in/pose_right", &g_aPoseR);
 	g_input = true;
 	Log("input actions ready (%s)", manifest.c_str());
@@ -1690,8 +1691,8 @@ static void AfterPresent(UINT bbW, UINT bbH)
 	float mx = Vec2(g_aMove, my);
 	float tx = Vec2(g_aTurn, ty);
 	if (g_menuOpen && g_panelPlaced) PanelPointer(Btn(g_aFire));
-	Send("I %.3f %.3f %.3f %.3f %d %d %d %d %d %d %d %d %d %d", mx, my, tx, ty, Btn(g_aJump), Btn(g_aCrouch), Btn(g_aMenu),
-		Btn(g_aFire), Btn(g_aAlt), Btn(g_aNext), Btn(g_aPrev), Btn(g_aDodge), Btn(g_aScores), Btn(g_aUse));
+	Send("I %.3f %.3f %.3f %.3f %d %d %d %d %d %d %d %d %d %d %d", mx, my, tx, ty, Btn(g_aJump), Btn(g_aCrouch), Btn(g_aMenu),
+		Btn(g_aFire), Btn(g_aAlt), Btn(g_aNext), Btn(g_aPrev), Btn(g_aDodge), Btn(g_aScores), Btn(g_aUse), Btn(g_aHorn));
 	if (g_frames % 60 == 1) SendStatic();
 }
 

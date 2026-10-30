@@ -77,6 +77,10 @@
     {
       "name": "/actions/main/in/use",
       "type": "boolean"
+    },
+    {
+      "name": "/actions/main/in/horn",
+      "type": "boolean"
     }
   ],
   "action_sets": [
@@ -91,8 +95,8 @@
       "/actions/main": "Walking",
       "/actions/main/in/move": "Move (smooth locomotion); in a vehicle: drive and steer",
       "/actions/main/in/turn": "Turn / teleport (push forward to aim)",
-      "/actions/main/in/jump": "Jump (stick near centre); in a vehicle: horn",
-      "/actions/main/in/crouch": "Crouch (hold); in a vehicle: duck / descend",
+      "/actions/main/in/jump": "Jump (in a vehicle: jump / rise)",
+      "/actions/main/in/crouch": "Crouch (hold; also the right stick pulled back)",
       "/actions/main/in/menu": "Menu / Esc (hold: recenter)",
       "/actions/main/in/pose_left": "Left hand",
       "/actions/main/in/pose_right": "Right hand",
@@ -102,7 +106,8 @@
       "/actions/main/in/prevweapon": "Previous weapon; in a vehicle: previous seat",
       "/actions/main/in/dodge": "Dodge (toward the move stick); in a vehicle: jump / rise",
       "/actions/main/in/scoreboard": "Scoreboard toggle",
-      "/actions/main/in/use": "Use (enter / leave a vehicle)"
+      "/actions/main/in/use": "Use (enter / leave a vehicle)",
+      "/actions/main/in/horn": "Horn (in a vehicle); in a space fighter aimed by gaze: freelook"
     }
   ]
 }

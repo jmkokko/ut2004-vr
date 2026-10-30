@@ -1,7 +1,7 @@
 {
   "controller_type": "vive_controller",
   "name": "UT2004VR default (vive_controller)",
-  "description": "L trackpad move / click jump, L trigger dodge, L grip crouch, L menu (hold: recenter); R trackpad turn/teleport / click use (enter or leave a vehicle), R trigger fire, R grip alt-fire, R menu previous weapon (scoreboard: VRScores in the console)",
+  "description": "L trackpad move / click horn (in vehicles), L trigger dodge, L grip jump; R stick back crouch, L menu (hold: recenter); R trackpad turn/teleport / click use (enter or leave a vehicle), R trigger fire, R grip alt-fire, R menu previous weapon (scoreboard: VRScores in the console)",
   "bindings": {
     "/actions/main": {
       "sources": [
@@ -28,7 +28,7 @@
           "mode": "button",
           "inputs": {
             "click": {
-              "output": "/actions/main/in/jump"
+              "output": "/actions/main/in/horn"
             }
           }
         },
@@ -46,7 +46,7 @@
           "mode": "button",
           "inputs": {
             "click": {
-              "output": "/actions/main/in/crouch"
+              "output": "/actions/main/in/jump"
             }
           }
         },
