@@ -81,11 +81,75 @@
     {
       "name": "/actions/main/in/horn",
       "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/move",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/lefty/in/turn",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/lefty/in/jump",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/crouch",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/menu",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/pose_left",
+      "type": "pose"
+    },
+    {
+      "name": "/actions/lefty/in/pose_right",
+      "type": "pose"
+    },
+    {
+      "name": "/actions/lefty/in/fire",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/altfire",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/nextweapon",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/prevweapon",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/dodge",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/scoreboard",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/use",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/lefty/in/horn",
+      "type": "boolean"
     }
   ],
   "action_sets": [
     {
       "name": "/actions/main",
+      "usage": "leftright"
+    },
+    {
+      "name": "/actions/lefty",
       "usage": "leftright"
     }
   ],
@@ -107,7 +171,23 @@
       "/actions/main/in/dodge": "Dodge (toward the move stick); in a vehicle: jump / rise",
       "/actions/main/in/scoreboard": "Scoreboard toggle",
       "/actions/main/in/use": "Use (enter / leave a vehicle)",
-      "/actions/main/in/horn": "Horn (in a vehicle); in a space fighter aimed by gaze: freelook"
+      "/actions/main/in/horn": "Horn (in a vehicle); in a space fighter aimed by gaze: freelook",
+      "/actions/lefty": "Left-handed (the gun in the left hand; every control on the other side)",
+      "/actions/lefty/in/move": "Move (smooth locomotion); in a vehicle: drive and steer",
+      "/actions/lefty/in/turn": "Turn / teleport (push forward to aim)",
+      "/actions/lefty/in/jump": "Jump (in a vehicle: jump / rise)",
+      "/actions/lefty/in/crouch": "Crouch (hold; also the right stick pulled back)",
+      "/actions/lefty/in/menu": "Menu / Esc (hold: recenter)",
+      "/actions/lefty/in/pose_left": "Left hand",
+      "/actions/lefty/in/pose_right": "Right hand",
+      "/actions/lefty/in/fire": "Fire",
+      "/actions/lefty/in/altfire": "Alt fire",
+      "/actions/lefty/in/nextweapon": "Next weapon; in a vehicle: next seat",
+      "/actions/lefty/in/prevweapon": "Previous weapon; in a vehicle: previous seat",
+      "/actions/lefty/in/dodge": "Dodge (toward the move stick); in a vehicle: jump / rise",
+      "/actions/lefty/in/scoreboard": "Scoreboard toggle",
+      "/actions/lefty/in/use": "Use (enter / leave a vehicle)",
+      "/actions/lefty/in/horn": "Horn (in a vehicle); in a space fighter aimed by gaze: freelook"
     }
   ]
 }

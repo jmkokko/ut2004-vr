@@ -107,6 +107,7 @@ var config float VehicleTurnDegPerSec;   // controller mode: the right stick lef
 var config bool  bVehicleHandAim;    // controller mode: flying vehicles (space fighters, Raptor, Cicada) and turrets / gunner seats aim with the right controller, as a weapon does; your head looks around freely
 var rotator VehRefR, VehCamR;
 var rotator KBMAimRot, KBMStartRot;
+var float  NextHandMsg;
 var float  TurretPanYaw;             // turrets: the seat's view turned this far (uu) by the crosshair at the view's edge
 var config float TurretEdgeDeg, TurretEdgeTurn, TurretEdgeMaxDegPerSec;
 var bool   bKBMAimInit;              // a new vehicle in keyboard/mouse mode: the mouse's aim starts at your gaze              // keyboard/mouse mode in a vehicle: UT's own camera rotation (the mouse's aim)        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
@@ -425,6 +426,15 @@ event PlayerTick(float DeltaTime)
 		VRVehicleButtons();
 	if ( Vehicle(Pawn) != None && VRActive() )
 		TurretEdgePan(DeltaTime);
+	// the proxy mirrors the controls for a left-handed player (Weapon Hand: Left, controller mode)
+	if ( Link != None && !Link.bDeleteMe && Level.TimeSeconds > NextHandMsg )
+	{
+		NextHandMsg = Level.TimeSeconds + 1.0;
+		if ( LeftHandedVR() )
+			Link.ToProxy("G L");
+		else
+			Link.ToProxy("G R");
+	}
 	if ( Vehicle(Pawn) != None && VRActive() )
 	{
 		// the hand-held gun stays behind while you drive; the laser comes from the vehicle's gun
@@ -1666,6 +1676,49 @@ simulated function vector VehicleAimPoint()
 	return End;
 }
 
+// the game's Weapon Hand setting (Settings > Player; UT's Handedness: -1 left, 0 centre, 1 right, 2 hidden)
+simulated function int GunHand()
+{
+	if ( Handedness < -0.5 )
+		return -1;
+	if ( Handedness > 1.5 )
+		return 2;
+	if ( Handedness > 0.5 )
+		return 1;
+	return 0;
+}
+
+// controller mode with the Weapon Hand set to Left: the gun in the left hand, every control on the other side
+// (the proxy mirrors the bindings and sends the left controller as the gun hand)
+simulated function bool LeftHandedVR()
+{
+	return !bKeyboardMouse && GunHand() == -1;
+}
+
+// which way the gun sits off-centre: 1 right, -1 left, 0 in the middle (keyboard mode: centre and hidden)
+simulated function float GunSide()
+{
+	if ( bKeyboardMouse )
+	{
+		if ( GunHand() == -1 )
+			return -1;
+		if ( GunHand() == 1 )
+			return 1;
+		return 0;
+	}
+	if ( LeftHandedVR() )
+		return -1;
+	return 1;
+}
+
+// mirrored for the left hand: the sideways part of a gun-space offset
+simulated function vector SideOfs(vector V)
+{
+	if ( LeftHandedVR() )
+		V.Y = -V.Y;
+	return V;
+}
+
 // controller mode: the right controller aims every vehicle and seat (bVehicleHandAim), as it aims a weapon - the
 // guns, and the vehicles that face their aim (space fighters, Raptor, Cicada, Manta) turn toward it; your head
 // looks around freely
@@ -1778,7 +1831,8 @@ simulated function vector GunTip()
 		if ( VSize(BodyHeadPos) == 0 )
 			Loc = VRHeadWorld + KBMGunLag();
 		GetAxes(CleanAim(Rotation), X, Y, Z);
-		return Loc + KBMGunOffset.X * X + KBMGunOffset.Y * Y + (KBMGunOffset.Z - KBMChestBelowEyes * UUPerMeter) * Z;
+		// (to the side of the Weapon Hand setting: right, left or the middle)
+		return Loc + KBMGunOffset.X * X + KBMGunOffset.Y * GunSide() * Y + (KBMGunOffset.Z - KBMChestBelowEyes * UUPerMeter) * Z;
 	}
 	GetHandWorld(1, Loc, Dir);
 	return Loc;
@@ -1866,7 +1920,7 @@ function vector GripOffsetFor(Weapon W)
 	}
 	i = FindGrip(Grips, W);
 	if ( i >= 0 )
-		return Grips[i].Offset;
+		return SideOfs(Grips[i].Offset);   // (mirrored in the left hand)
 	return vect(0,0,0);
 }
 
@@ -2152,7 +2206,8 @@ function UpdateGun()
 		W.SetDrawScale(W.Default.DrawScale);
 		return;
 	}
-	Handedness = 0;   // no screen-space left/right offsets for effects and projectiles
+	// (Handedness stays the player's Weapon Hand setting, which places the gun - GunSide; the weapon itself has no
+	// screen-space left/right offsets for effects and projectiles)
 	W.Hand = 0;
 	// SniperFire's Hand-0 branch starts the bolt at the body (Location + EffectOffset.X along the aim); its
 	// right-handed branch goes through CalcDrawOffset, which VRPawn points at the muzzle. Instant-hit only,
@@ -2221,12 +2276,15 @@ function UpdateGun()
 	{
 		O = GripOffsetFor(W);
 		HandleL = G.GripL - (O.X * G.Xb + O.Y * G.Yb + O.Z * G.Zb);
-		HandW = GunTip() + GunOffset.X * X + GunOffset.Y * Y + GunOffset.Z * Z;
+		HandW = GunTip() + GunOffset.X * X + SideOfs(GunOffset).Y * Y + GunOffset.Z * Z;
 		A.SetRotation(OrthoRotation(Xw, Yw, Zw));
 		A.SetLocation(HandW - (HandleL.X * Xw + HandleL.Y * Yw + HandleL.Z * Zw));
 		ApplyRecoil(W, A, HandW, X, Z, Xw, Yw, Zw);
 	}
 	TipW = A.Location + G.TipL.X * Xw + G.TipL.Y * Yw + G.TipL.Z * Zw;
+	// Weapon Hand "Hidden" (keyboard mode): no gun in view; the shots still leave from where it would be, the middle
+	if ( bKeyboardMouse && GunHand() == 2 && !bTPGun )
+		A.bHidden = true;
 	if ( bTPGun )
 	{
 		// the model's own muzzle bone as rendered in the hand (its actor transform lags/differs while attached)

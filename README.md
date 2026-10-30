@@ -45,6 +45,8 @@ right hand, and shots, beams and projectiles leave its muzzle along its barrel, 
 | Right stick | Nothing while the controller aims (`bVehicleHandAim=False`: pitch and yaw, as the mouse does, `FighterSteer=2000`) |
 | Right A / B | Next / previous target |
 
+**Left-handed:** Settings > Player > Weapon Hand. Controller mode: Left puts the gun in your left hand and every control on the other side (SteamVR's mirrored `/actions/lefty` bindings, A/B <-> X/Y on Touch and Reverb); Right (and Centre, Hidden) is as above. Keyboard mode: the gun sits to the right, left or in the middle, or Hidden shows none.
+
 Index uses left B for the menu and left A for the scoreboard. WMR uses the left menu button and the left touchpad click, with the right touchpad for next weapon and the right menu button for previous weapon. Vive has no scoreboard button. Remap anything in SteamVR's Controller Bindings while the game runs. The cycle of A/B includes the Redeemer and Ion Painter.
 
 Weapons: `[UT2004VR.VRPlayerController]` `bWeapons=False` gives travel-only mode; `GunOffset` (uu, aim space: shifts the gun relative to the controller) and `GunPitchOffset` adjust how the gun sits in

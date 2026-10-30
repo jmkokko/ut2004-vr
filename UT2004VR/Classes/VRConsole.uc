@@ -18,6 +18,7 @@ var string MenuTestNext;
 var int MenuTestFrames;
 var bool bMenuTestStarted;
 var LevelInfo LastLevel;
+var float NextHandMsg;
 var string ReloadedURL;           // the level being reloaded with the VR mutator (no second try until VR comes up)
 
 function DelayedConsoleCommand(string Command)
@@ -145,6 +146,15 @@ event Tick(float Delta)
 	if ( Menu == None )
 		Menu = new class'VRMenu';
 	Link.Drain();
+	// the main menus: the proxy mirrors the controls for a left-handed player too (Weapon Hand: Left)
+	if ( PC.Level.TimeSeconds > NextHandMsg || PC.Level.TimeSeconds < NextHandMsg - 2 )
+	{
+		NextHandMsg = PC.Level.TimeSeconds + 1.0;
+		if ( !class'VRTuning'.default.bKeyboardMouse && PC.Handedness < -0.5 )
+			Link.ToProxy("G L");
+		else
+			Link.ToProxy("G R");
+	}
 	G = GUIController(ViewportOwner.GUIController);
 	Menu.Update(Link, G, class'VRTuning'.default.bKeyboardMouse, bBtnFire, PC.Level.TimeSeconds, ViewMode(PC));
 }

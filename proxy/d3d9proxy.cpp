@@ -78,6 +78,8 @@ static float g_renderScale = 1.0f;   // UT2004VR_SCALE: fraction of SteamVR's re
 static int g_port = 7790;
 static bool g_forceMock = false;
 static bool g_mockDemo = false;
+static std::string g_ini;          // UT2004VR_proxy.ini (LeftHanded is written back)
+static bool g_leftHanded = false;  // the game's weapon hand (Settings > Player: Weapon Hand) is the left: "G L" (LeftHanded)
 static bool g_dumpEyes = false;
 static unsigned g_dumpStart = 400, g_dumpStep = 300;   // DumpEyesStart / DumpEyesStep: the first dump's frame, the frames between the 12
 static int g_mirrorEye = 0;       // MirrorEye: 0 left / 1 right eye copied into the desktop window, -1 off
@@ -115,8 +117,10 @@ static void ReadConfig()
 	if (GetEnvironmentVariableA("UT2004VR_MOCK", buf, sizeof buf)) g_forceMock = buf[0] == '1';
 	// same keys from UT2004VR_proxy.ini next to the dll
 	std::string ini = g_dir + "UT2004VR_proxy.ini";
+	g_ini = ini;
 	if (GetPrivateProfileStringA("VR", "RenderScale", "", buf, sizeof buf, ini.c_str())) g_renderScale = (float)atof(buf);
 	if (GetPrivateProfileStringA("VR", "Port", "", buf, sizeof buf, ini.c_str())) g_port = atoi(buf);
+	if (GetPrivateProfileStringA("VR", "LeftHanded", "", buf, sizeof buf, ini.c_str())) g_leftHanded = buf[0] == '1';
 	if (GetPrivateProfileStringA("VR", "Mock", "", buf, sizeof buf, ini.c_str())) g_forceMock = g_forceMock || buf[0] == '1';
 	if (GetPrivateProfileStringA("VR", "GPUShare", "", buf, sizeof buf, ini.c_str())) g_wantEx = buf[0] != '0';
 	if (GetPrivateProfileStringA("VR", "MirrorEye", "", buf, sizeof buf, ini.c_str())) g_mirrorEye = atoi(buf);
@@ -219,6 +223,11 @@ static vr::IVRSystem* g_hmd = nullptr;
 static bool g_vrTried = false;
 static bool g_mock = false;
 static vr::VRActionSetHandle_t g_set = 0;
+// both action sets: /actions/main (right-handed) and /actions/lefty (the same actions, every control on the other
+// hand); the frame's set is copied into the g_a* handles below
+struct ActSet { vr::VRActionSetHandle_t set; vr::VRActionHandle_t move, turn, jump, crouch, menu, poseL, poseR, fire, alt, next, prev, dodge, scores, use, horn; };
+static ActSet g_acts[2] = {};
+
 static vr::VRActionHandle_t g_aMove = 0, g_aTurn = 0, g_aJump = 0, g_aCrouch = 0, g_aMenu = 0, g_aPoseL = 0, g_aPoseR = 0;
 static vr::VRActionHandle_t g_aFire = 0, g_aAlt = 0, g_aNext = 0, g_aPrev = 0, g_aDodge = 0, g_aScores = 0, g_aUse = 0, g_aHorn = 0;
 static bool g_input = false;
@@ -287,27 +296,42 @@ static void ComputeFrustum()
 	Log("recommended %ux%u, fov %d, eye render targets %dx%d (scale %.2f)", rw, rh, g_fov, g_eyeW, g_eyeH, g_renderScale);
 }
 
+// the frame's action set: the right-handed one, or the mirrored one when the gun is in the left hand
+static void UseActSet()
+{
+	const ActSet& a = g_acts[g_leftHanded ? 1 : 0];
+	g_set = a.set; g_aMove = a.move; g_aTurn = a.turn; g_aJump = a.jump; g_aCrouch = a.crouch; g_aMenu = a.menu;
+	g_aPoseL = a.poseL; g_aPoseR = a.poseR; g_aFire = a.fire; g_aAlt = a.alt; g_aNext = a.next; g_aPrev = a.prev;
+	g_aDodge = a.dodge; g_aScores = a.scores; g_aUse = a.use; g_aHorn = a.horn;
+}
+
 static void InitInput()
 {
 	std::string manifest = g_dir + "UT2004VR\\actions.json";
 	vr::EVRInputError err = vr::VRInput()->SetActionManifestPath(manifest.c_str());
 	if (err != vr::VRInputError_None) { Log("SetActionManifestPath(%s) failed: %d", manifest.c_str(), err); return; }
-	vr::VRInput()->GetActionSetHandle("/actions/main", &g_set);
-	vr::VRInput()->GetActionHandle("/actions/main/in/move", &g_aMove);
-	vr::VRInput()->GetActionHandle("/actions/main/in/turn", &g_aTurn);
-	vr::VRInput()->GetActionHandle("/actions/main/in/jump", &g_aJump);
-	vr::VRInput()->GetActionHandle("/actions/main/in/crouch", &g_aCrouch);
-	vr::VRInput()->GetActionHandle("/actions/main/in/menu", &g_aMenu);
-	vr::VRInput()->GetActionHandle("/actions/main/in/pose_left", &g_aPoseL);
-	vr::VRInput()->GetActionHandle("/actions/main/in/fire", &g_aFire);
-	vr::VRInput()->GetActionHandle("/actions/main/in/altfire", &g_aAlt);
-	vr::VRInput()->GetActionHandle("/actions/main/in/nextweapon", &g_aNext);
-	vr::VRInput()->GetActionHandle("/actions/main/in/prevweapon", &g_aPrev);
-	vr::VRInput()->GetActionHandle("/actions/main/in/dodge", &g_aDodge);
-	vr::VRInput()->GetActionHandle("/actions/main/in/scoreboard", &g_aScores);
-	vr::VRInput()->GetActionHandle("/actions/main/in/use", &g_aUse);
-	vr::VRInput()->GetActionHandle("/actions/main/in/horn", &g_aHorn);
-	vr::VRInput()->GetActionHandle("/actions/main/in/pose_right", &g_aPoseR);
+	for (int k = 0; k < 2; k++)
+	{
+		std::string b = k == 0 ? "/actions/main" : "/actions/lefty";
+		ActSet& a = g_acts[k];
+		vr::VRInput()->GetActionSetHandle(b.c_str(), &a.set);
+		vr::VRInput()->GetActionHandle((b + "/in/move").c_str(), &a.move);
+		vr::VRInput()->GetActionHandle((b + "/in/turn").c_str(), &a.turn);
+		vr::VRInput()->GetActionHandle((b + "/in/jump").c_str(), &a.jump);
+		vr::VRInput()->GetActionHandle((b + "/in/crouch").c_str(), &a.crouch);
+		vr::VRInput()->GetActionHandle((b + "/in/menu").c_str(), &a.menu);
+		vr::VRInput()->GetActionHandle((b + "/in/pose_left").c_str(), &a.poseL);
+		vr::VRInput()->GetActionHandle((b + "/in/pose_right").c_str(), &a.poseR);
+		vr::VRInput()->GetActionHandle((b + "/in/fire").c_str(), &a.fire);
+		vr::VRInput()->GetActionHandle((b + "/in/altfire").c_str(), &a.alt);
+		vr::VRInput()->GetActionHandle((b + "/in/nextweapon").c_str(), &a.next);
+		vr::VRInput()->GetActionHandle((b + "/in/prevweapon").c_str(), &a.prev);
+		vr::VRInput()->GetActionHandle((b + "/in/dodge").c_str(), &a.dodge);
+		vr::VRInput()->GetActionHandle((b + "/in/scoreboard").c_str(), &a.scores);
+		vr::VRInput()->GetActionHandle((b + "/in/use").c_str(), &a.use);
+		vr::VRInput()->GetActionHandle((b + "/in/horn").c_str(), &a.horn);
+	}
+	UseActSet();
 	g_input = true;
 	Log("input actions ready (%s)", manifest.c_str());
 }
@@ -551,6 +575,17 @@ static void PollGame()
 			}
 		}
 		if (b[0] == 'S') ScorePacket(b);
+		if (b[0] == 'G')
+		{
+			bool l = b[2] == 'L';
+			if (l != g_leftHanded)
+			{
+				g_leftHanded = l;
+				UseActSet();
+				WritePrivateProfileStringA("VR", "LeftHanded", l ? "1" : "0", g_ini.c_str());
+				Log("weapon hand: %s (controls %s)", l ? "left" : "right", l ? "mirrored" : "as bound");
+			}
+		}
 		if (b[0] == 'P')
 		{
 			bool open = b[2] == '1';
@@ -1685,8 +1720,9 @@ static void AfterPresent(UINT bbW, UINT bbH)
 		as.ulActionSet = g_set;
 		vr::VRInput()->UpdateActionState(&as, sizeof as, 1);
 	}
-	SendHand('L', g_aPoseL);
-	SendHand('R', g_aPoseR);
+	// left-handed: the left controller is the gun hand ("R" to the game, the menu pointer too), the right the other
+	SendHand('L', g_leftHanded ? g_aPoseR : g_aPoseL);
+	SendHand('R', g_leftHanded ? g_aPoseL : g_aPoseR);
 	float my, ty;
 	float mx = Vec2(g_aMove, my);
 	float tx = Vec2(g_aTurn, ty);
