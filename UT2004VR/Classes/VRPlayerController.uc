@@ -1920,7 +1920,7 @@ function vector GripOffsetFor(Weapon W)
 	}
 	i = FindGrip(Grips, W);
 	if ( i >= 0 )
-		return SideOfs(Grips[i].Offset);   // (mirrored in the left hand)
+		return Grips[i].Offset;   // (not mirrored in the left hand: it corrects the model's own handle, which is the same)
 	return vect(0,0,0);
 }
 
