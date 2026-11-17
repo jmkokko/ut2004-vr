@@ -198,6 +198,7 @@ struct GunCal
 var array<GunCal> GunCals;
 var int    CurCal;              // index into GunCals for the shown gun, -1 = not calibrated yet
 var bool   bGunCalibrated;
+var float NextBeamLog;          // debug: LogAimBeams
 var vector GunTarget;           // world point where the muzzle sits this tick
 var vector GunHandleW, GunHandW; // debug: the handle point and the hand this tick
 var Actor  GunModel;            // what is drawn in the hand (third-person model; complete and real-size)
@@ -698,6 +699,20 @@ function MeasureBeamGap()
 		if ( F != None && F.Beam != None )
 			BeamGap = VSize(F.Beam.Location - GunTarget);
 	}
+}
+
+// debug (bDebugLog): where the Mine Layer's guide beam and the Painter's beam start, against the muzzle (aim axes)
+function LogAimBeams()
+{
+	local Actor E;
+	if ( Level.TimeSeconds < NextBeamLog )
+		return;
+	foreach DynamicActors(class'Actor', E)
+		if ( (E.IsA('ONSMineLayerTargetBeamEffect') || E.IsA('PainterBeamEffect')) && E.Instigator == Pawn )
+		{
+			NextBeamLog = Level.TimeSeconds + 0.5;
+			Log("UT2004VR: aim beam "$E.Class.Name$" start off the muzzle "$((E.Location - GunTarget) << Rotation)$" ("$int(VSize(E.Location - GunTarget))$" uu)", 'UT2004VR');
+		}
 }
 
 // debug: the neck model (VRNeck 1 forces it on) and the eye position against the gun's anchor
@@ -2838,8 +2853,16 @@ exec function VRFighterAim(string S)
 // debug: press a controller button for 0.3 s, as the proxy would report it: use, jump, next, prev, dodge, crouch, alt, fire
 exec function VRTapBtn(string B)
 {
+	local array<string> P;
+	local float T;
+	T = 0.3;
+	if ( Split(B, " ", P) >= 2 )
+	{
+		B = P[0];
+		T = float(P[1]);   // optional: how long to hold it (s)
+	}
 	TapBtn = Caps(B);
-	TapBtnUntil = Level.TimeSeconds + 0.3;
+	TapBtnUntil = Level.TimeSeconds + T;
 	SetTapBtn(true);
 }
 
@@ -4497,6 +4520,8 @@ simulated event RenderTexture(ScriptedTexture Tex)
 	{
 		UpdateGun();
 		MeasureBeamGap();
+		if ( bDebugLog )
+			LogAimBeams();
 	}
 	GetEyeView(Eye, Loc, Rot);
 	if ( bCalibGun && Eye == 0 && GunModel != None && Level.TimeSeconds > NextGunEyeLog )

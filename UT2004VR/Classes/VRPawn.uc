@@ -36,6 +36,12 @@ simulated function vector CalcDrawOffset(inventory Inv)
 			Ofs = W.SmallEffectOffset;
 		else
 			Ofs = W.EffectOffset;
+		// the Mine Layer's guide beam and the (Ion/target) Painter's beam, their only users of CalcDrawOffset, add the
+		// beam's own offset, not the gun's (it put them ~100 uu behind the muzzle, the guide beam also 40 uu up)
+		if ( W.IsA('ONSMineLayer') )
+			Ofs = class'ONSMineLayerTargetBeamEffect'.default.EffectOffset;
+		else if ( W.IsA('Painter') )
+			Ofs = class'PainterBeamEffect'.default.EffectOffset;
 		Muzzle = Muzzle - (Ofs.X * X + Ofs.Y * Y * W.Hand + Ofs.Z * Z);
 		// LinkGun.GetEffectStart (Hand 0) lowers its offset by 14 (10 on the old mesh) and adds 3 sideways,
 		// and LinkBeamEffect then starts 60 uu behind that: undo both so the alt-fire beam leaves the muzzle
