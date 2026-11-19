@@ -306,7 +306,7 @@ simulated function DrawShadowHud(Canvas C)
 	local float TVSearch;
 	local GameObject GObj;
 	local Pawn P;
-	local bool bOldSpecialCH;
+	local bool bOldSpecialCH, bOldSpecialHUD;
 	local Vehicle FTarget;
 	local ONSVehicle OV;
 	local ONSWeaponPawn WP;
@@ -356,6 +356,10 @@ simulated function DrawShadowHud(Canvas C)
 	{
 		bOldSpecialCH = P.bSpecialCrosshair;
 		P.bSpecialCrosshair = false;
+		// the guided Redeemer's own HUD (HUD.PostRender -> Pawn.DrawHUD) is 2D's full-screen scope picture: on the
+		// layer it hid the whole view. You ride behind its window in 3D instead (DrawRedeemerWindow)
+		bOldSpecialHUD = P.bSpecialHUD;
+		P.bSpecialHUD = false;
 	}
 	// a space fighter's target box / line (at the target's screen position): in 3D instead
 	if ( ASVehicle_SpaceFighter(P) != None )
@@ -410,7 +414,10 @@ simulated function DrawShadowHud(Canvas C)
 		WP.CrosshairX = CHX; WP.CrosshairY = CHY;
 	}
 	if ( P != None )
+	{
 		P.bSpecialCrosshair = bOldSpecialCH;
+		P.bSpecialHUD = bOldSpecialHUD;
+	}
 	// the game messages go on top of the HUD, as in 2D (in the eyes they were under the layer)
 	DrawLayerMessages(C, Con, bOldTyping);
 	if ( ASVehicle_SpaceFighter(P) != None )
