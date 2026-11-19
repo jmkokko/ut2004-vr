@@ -5596,7 +5596,7 @@ defaultproperties
 	HeadingTurnRate=2.0
 	bSteerByGaze=true
 	bKeyboardMouse=false
-	KBMGunOffset=(X=16,Y=7,Z=-6)
+	KBMGunOffset=(X=16,Y=10,Z=-6)
 	KBMChestBelowEyes=0.32
 	GunLagTime=0.12
 	GunLagMax=0.015
