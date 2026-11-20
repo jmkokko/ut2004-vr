@@ -7,7 +7,9 @@ menus floating in front of you.
 [![Latest release](https://img.shields.io/github/v/release/jmkokko/ut2004-vr)](https://github.com/jmkokko/ut2004-vr/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![The Flak Cannon held in the right hand, its aiming laser running down a corridor in DM-Rankin, with the health, ammo and score HUD around the view](docs/images/flak-in-hand.jpg)
+![Real play in the headset: a Link Gun kill, the gun moving in the hand, UT2004's HUD and weapon bar along the bottom](docs/images/gameplay.webp)
+
+<sub>Real play in the headset, recorded from the desktop mirror (one eye).</sub>
 
 ## Features
 
@@ -31,7 +33,7 @@ menus floating in front of you.
 | ![Riding a guided Redeemer: the map through a round window with UT's red scope markings](docs/images/redeemer-window.jpg) | ![Sitting on a Manta in Onslaught, its hull in front of you](docs/images/manta-cockpit.jpg) |
 | **Guided Redeemer.** You ride the warhead, looking out through its window. | **Vehicles.** You sit in them; the right controller aims. |
 
-<sub>Pictures from the desktop mirror of the headset view (one eye), taken with the mod's simulated headset.</sub>
+<sub>These four from the desktop mirror (one eye), with the mod's simulated headset.</sub>
 
 ## Requirements
 
