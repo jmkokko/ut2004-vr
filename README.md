@@ -28,12 +28,12 @@ menus floating in front of you.
 
 | | |
 |---|---|
-| ![Zoomed with the Lightning Gun: the magnified view appears in a round lens above the gun](docs/images/scope-lens.jpg) | ![The Redeemer held in Onslaught on ONS-Torlan](docs/images/redeemer-onslaught.jpg) |
-| **Scope lens.** Zoom shows in a lens on the gun, not across your whole view. | **Every weapon in hand**, here the Redeemer in Onslaught. |
-| ![Riding a guided Redeemer: the map through a round window with UT's red scope markings](docs/images/redeemer-window.jpg) | ![Sitting on a Manta in Onslaught, its hull in front of you](docs/images/manta-cockpit.jpg) |
+| ![Zoomed with the Lightning Gun: the magnified view of a target appears in a round lens on the gun](docs/images/scope-lens.jpg) | ![The Redeemer held in the hand on DM-Antalus](docs/images/redeemer-antalus.jpg) |
+| **Scope lens.** Zoom shows in a lens on the gun, not across your whole view. | **Every weapon in hand**, here the Redeemer. |
+| ![Riding a guided Redeemer: the map through a round window with UT's red scope markings](docs/images/redeemer-window.jpg) | ![Driving a Scorpion in Onslaught, with the game's radar map in the HUD](docs/images/scorpion-cockpit.jpg) |
 | **Guided Redeemer.** You ride the warhead, looking out through its window. | **Vehicles.** You sit in them; the right controller aims. |
 
-<sub>These four from the desktop mirror (one eye), with the mod's simulated headset.</sub>
+<sub>Screenshots from the desktop mirror (one eye); the Redeemer window is from the mod's simulated headset.</sub>
 
 ## Requirements
 
