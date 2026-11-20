@@ -9,9 +9,9 @@ Done = working in the headset plus a 20-45 s clip.
 - UT2004 installs:
   - `C:\UnrealTournament2004`: **OldUnreal patch v3374** (`Build.ini`: `UT2004_v3374_[2026-02-07_18.11]_e777cc6e`),
     **x64** (PE machine 0x8664), plus a SystemARM64 folder. Renderer `D3D9Drv.D3D9RenderDevice` (calls plain
-    `Direct3DCreate9`). 131 maps, fullscreen 3440x1440. **This is the lab install.**
-  - `G:\UT2004`: retail 3369-era, 32-bit (0x14c), OpenGL/D3D8 only.
-  - `E:\UT\ut2004`: broken or partial (`UT2004.exe` is 0 bytes).
+    `Direct3DCreate9`). 131 maps. **This is the lab install.**
+  - Two older installs on other drives: a retail 3369-era 32-bit one (0x14c, OpenGL/D3D8 only) and a broken one
+    (`UT2004.exe` 0 bytes). Not used.
 - VR runtime: **none found**. No SteamVR folder in any Steam library, no `HKLM\SOFTWARE\Khronos\OpenXR\1`
   ActiveRuntime, no `openvrpaths.vrpath`, no Oculus or Virtual Desktop install. The headset is still unknown.
 - Prior art: no UT2004 or UE2 VR mod found. UEVR covers UE4.8-5.4 only. DXU24 (UE1 → UE5 bridge) is the

@@ -111,7 +111,7 @@ universal-modder toolkit (from WSL):
 um win record --exe UT2004.exe --out 'C:\caps\take1' --seconds 60
 um video mux /mnt/c/caps/take1.mkv /mnt/c/caps/take1.audio.raw /mnt/c/caps/take1.json take1.mp4
 ```
-For a 16:9 video, set the window to 1600×900 or 1920×1080 (`WindowedViewportX/Y` in `UT2004.ini`); a very wide window
+For a 16:9 video, set the window to 1600×900 or 1920×1080 (`WindowedViewportX/Y` in `UT2004VR_Game.ini`); a very wide window
 crops the top and bottom of the eye view, HUD rows included.
 
 ## Build and install (from WSL)
@@ -120,19 +120,23 @@ crops the top and bottom of the eye view, HUD rows included.
 ./build-proxy.sh   # MSVC x64 build of d3d9.dll; installs it, openvr_api.dll, actions and Play-VR.bat
 ```
 The lab install is `C:\UT2004-VRLab`, a copy of `C:\UnrealTournament2004`. Set `LAB=...` to target another
-3374 install. To uninstall, delete `System\d3d9.dll`; the rest is inert without it.
+3374 install. UT2004.ini is left stock apart from `EditPackages` (needed by `ucc make`). VR runs only when the game
+is started by `Play-VR.bat`; any other launch is plain UT2004 (the proxy passes straight through). To uninstall,
+delete `System\d3d9.dll`; the rest is inert without it.
 
 ## Play
 1. Install SteamVR, connect the headset and start SteamVR.
 2. Run `C:\UT2004-VRLab\System\Play-VR.bat`: UT2004's main menu floats in the headset. Point and pull the trigger
    (or use the mouse in keyboard/mouse mode) through Instant Action: gametype, map, rules, bots, mutators. The game
    starts in VR whatever you pick. `Play-VR.bat DM-Rankin` (any map) skips the menu and goes straight into VRGame.
+   `Play-VR.bat` runs the game with its own settings file, `UT2004VR_Game.ini`, made on its first run from
+   `UT2004.ini` (delete it to start over from your current settings).
 
 UT's startup intro (the NVIDIA logo Gorge steps out of) plays in the headset in 3D, from the intro's own camera:
 you ride along with it, your head tracking on top (yaw follows the camera, the horizon stays level). The trigger
-or a click skips it. `build.sh` sets `LocalMap=NvidiaLogo.ut2?Mutator=UT2004VR.VRMutator` for that.
+or a click skips it. `Play-VR.bat` sets `LocalMap=NvidiaLogo.ut2?Mutator=UT2004VR.VRMutator` in `UT2004VR_Game.ini` for that.
 
-How: `VRConsole` (UT's console class, `Console=UT2004VR.VRConsole` in `UT2004.ini`, set by `build.sh`) adds
+How: `VRConsole` (UT's console class, `Console=UT2004VR.VRConsole` in `UT2004VR_Game.ini`, set by `Play-VR.bat`) adds
 `?Mutator=UT2004VR.VRMutator` to every game the menus start; the mutator makes you a `VRPlayerController` and names
 the bots (`BotNames` under `[UT2004VR.VRGame]` applies in every gametype). In the main menus, where no
 VR game runs, the console drives the menu panel and the proxy draws the headset view itself (a dark room with the
@@ -186,3 +190,7 @@ head; the big screen too), and is mipmapped so text doesn't shimmer; in the main
 
 No game files are included. Built with AI assistance (Claude Code + the universal-modder toolkit).
 OpenVR SDK © Valve, BSD-3-Clause.
+
+## License
+MIT (see `LICENSE`), for UT2004VR's own code and files. Unreal Tournament 2004 belongs to Epic Games and none of
+its files are included; you need your own copy. `openvr_api.dll` is Valve's OpenVR SDK (BSD 3-clause).
