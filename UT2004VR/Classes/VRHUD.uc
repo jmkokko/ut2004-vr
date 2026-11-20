@@ -10,6 +10,7 @@ class VRHUD extends HudCDeathMatch;
 #exec TEXTURE IMPORT NAME=VRScopeRing FILE=Textures\ScopeRing.tga MIPS=OFF ALPHA=1 LODSET=LODSET_Interface UCLAMPMODE=CLAMP VCLAMPMODE=CLAMP
 #exec TEXTURE IMPORT NAME=VRPorthole FILE=Textures\Porthole.tga MIPS=OFF ALPHA=1 LODSET=LODSET_Interface UCLAMPMODE=CLAMP VCLAMPMODE=CLAMP
 #exec TEXTURE IMPORT NAME=VRVignette FILE=Textures\Vignette.tga MIPS=OFF ALPHA=1 LODSET=LODSET_Interface UCLAMPMODE=CLAMP VCLAMPMODE=CLAMP
+#exec TEXTURE IMPORT NAME=VRLaserDot FILE=Textures\LaserDot.tga MIPS=ON UCLAMPMODE=CLAMP VCLAMPMODE=CLAMP
 
 var float MsgCullTime;              // Level.TimeSeconds the message queues were last aged
 var int ScoreFrame;                 // frames an original overlay has been up (every ScoreCapturePeriod: a capture pair)

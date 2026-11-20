@@ -157,7 +157,7 @@ var array<byte>  TunedInstant;
 var config bool  bVehicleLaser;     // in vehicles: the laser from the gun's muzzle (else a crosshair at its hit point)
 var config bool  bLaser;            // aiming laser from the muzzle to whatever the gun points at
 var config float LaserRange;        // how far the laser reaches (uu)
-var config float LaserDotSize;      // dot size, as a fraction of the distance (constant angular size)
+var config float LaserDotDeg;       // the laser dot's red core: how wide it looks (deg), the same at any distance
 var config float LaserBrightness;   // 0..1 (additive, so this is its translucency)
 var config float LaserWidth;        // the laser beam's width (uu)
 var config float LaserFadeIn;       // seconds to fade back in after firing stops (hidden while firing)
@@ -2414,7 +2414,8 @@ function UpdateLaser(bool bShow, vector Start, vector Dir, optional bool bHasEnd
 {
 	local vector HitLoc, HitNorm, End;
 	local Actor HitActor;
-	local float F;
+	local float F, DotScale, Dist, SinA, Pull;
+	local vector U;
 
 	if ( !bShow || !bLaser || bMenuOpen )
 	{
@@ -2429,7 +2430,7 @@ function UpdateLaser(bool bShow, vector Start, vector Dir, optional bool bHasEnd
 		LaserDot = Spawn(class'VRArcDot', self,, Start);
 		if ( LaserDot != None )
 		{
-			LaserDot.Texture = Texture'EpicParticles.Flares.SoftFlare';
+			LaserDot.Texture = Texture'VRLaserDot';   // a small red dot, no glow halo
 			LaserDot.Style = STY_Additive;
 		}
 	}
@@ -2471,9 +2472,21 @@ function UpdateLaser(bool bShow, vector Start, vector Dir, optional bool bHasEnd
 	if ( LaserDot != None )
 	{
 		LaserDot.bHidden = HitActor == None || F <= 0.01;
-		LaserDot.ScaleGlow = F;
-		LaserDot.SetLocation(End - Dir * 2);
-		LaserDot.SetDrawScale(FMax(0.02, VSize(End - VRHeadWorld) * LaserDotSize));
+		LaserDot.ScaleGlow = FMin(1, 2 * F);   // the dot a bit brighter than the beam
+		// VRLaserDot is 64 texels with a 14-texel core: the core spans LaserDotDeg at any distance (at least ~1 cm).
+		// The sprite faces you, so on a surface seen at a grazing angle it would sink halfway in: bring it toward
+		// your eyes until it clears the surface (its radius / tan of the angle, at most 30 % of the way), then size
+		// it for where it ends up.
+		Dist = VSize(End - VRHeadWorld);
+		U = Normal(End - VRHeadWorld);
+		DotScale = FMax(0.04, Dist * Tan(LaserDotDeg * 3.14159265 / 180.0) / 14.0);
+		SinA = 1;
+		if ( !bHasEnd && HitActor != None )
+			SinA = FMax(0.05, Abs(U Dot HitNorm));
+		Pull = FMin(2 + 32 * DotScale * Sqrt(1 - SinA * SinA) / SinA, 0.3 * Dist);
+		DotScale = FMax(0.04, (Dist - Pull) * Tan(LaserDotDeg * 3.14159265 / 180.0) / 14.0);
+		LaserDot.SetDrawScale(DotScale);
+		LaserDot.SetLocation(End - U * Pull);
 	}
 }
 
@@ -5704,7 +5717,7 @@ defaultproperties
 	ScopeMinZoom=2.0
 	ScopeRes=512
 	LaserRange=12000
-	LaserDotSize=0.0006
+	LaserDotDeg=0.35
 	LaserBrightness=0.45
 	LaserWidth=0.6
 	LaserFadeIn=0.5

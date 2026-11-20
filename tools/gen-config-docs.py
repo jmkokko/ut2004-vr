@@ -19,7 +19,7 @@ GROUPS = [
     ("Height and world scale", "UUPerMeter bAutoHeight StandEyeMeters bMatchGameHeight EyeHeightBonus "
      "bSeatedAutoLevel AutoLevelSeconds NeckModelMode NeckForward NeckUp NeckBlendTime"),
     ("Weapons, laser and recoil", "bWeapons GunOffset GunPitchOffset FlipGuns GunScale MuzzleForward bLaser "
-     "LaserRange LaserDotSize LaserBrightness LaserWidth LaserFadeIn RecoilScale RecoilReturn"),
+     "LaserRange LaserDotDeg LaserBrightness LaserWidth LaserFadeIn RecoilScale RecoilReturn"),
     ("Keyboard and mouse mode", "bKeyboardMouse KBMGunOffset KBMChestBelowEyes GunLagTime GunLagMax GunLagSmooth"),
     ("Scope (zoom)", "bScope ScopeDiameter ScopeOffset ScopeKBMDiameter ScopeKBMDistance ScopeMinZoom ScopeRes "
      "ScopeStickZoom"),
