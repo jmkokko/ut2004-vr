@@ -2784,7 +2784,7 @@ exec function VRTestMessages()
 	ReceiveLocalizedMessage(class'FirstBloodMessage', 0, PlayerReplicationInfo);
 	ReceiveLocalizedMessage(class'PickupMessagePlus', 0, None, None, class'XWeapons.FlakCannonPickup');
 	ReceiveLocalizedMessage(class'MultiKillMessage', 1, PlayerReplicationInfo);
-	TeamMessage(PlayerReplicationInfo, "Poppamies was killed by a test", 'DeathMessage');
+	TeamMessage(PlayerReplicationInfo, "Player was killed by a test", 'DeathMessage');
 	TeamMessage(PlayerReplicationInfo, "hello from VR", 'Say');
 }
 
