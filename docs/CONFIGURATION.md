@@ -66,7 +66,7 @@ Change a setting while the game is closed, or from the console with
 | `MuzzleForward` | `4` | muzzle this far ahead of the controller before the gun is measured (uu) |
 | `bLaser` | `true` | aiming laser from the muzzle to whatever the gun points at |
 | `LaserRange` | `12000` | how far the laser reaches (uu) |
-| `LaserDotDeg` | `0.35` | the laser dot's red core: how wide it looks (deg), the same at any distance |
+| `LaserDotDeg` | `0.17` | the laser dot's red core: how wide it looks (deg), the same at any distance |
 | `LaserBrightness` | `0.45` | 0..1 (additive, so this is its translucency) |
 | `LaserWidth` | `0.6` | the laser beam's width (uu) |
 | `LaserFadeIn` | `0.5` | seconds to fade back in after firing stops (hidden while firing) |

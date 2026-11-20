@@ -2473,18 +2473,18 @@ function UpdateLaser(bool bShow, vector Start, vector Dir, optional bool bHasEnd
 	{
 		LaserDot.bHidden = HitActor == None || F <= 0.01;
 		LaserDot.ScaleGlow = FMin(1, 2 * F);   // the dot a bit brighter than the beam
-		// VRLaserDot is 64 texels with a 14-texel core: the core spans LaserDotDeg at any distance (at least ~1 cm).
+		// VRLaserDot is 64 texels with a 14-texel core: the core spans LaserDotDeg at any distance (at least ~5 mm).
 		// The sprite faces you, so on a surface seen at a grazing angle it would sink halfway in: bring it toward
 		// your eyes until it clears the surface (its radius / tan of the angle, at most 30 % of the way), then size
 		// it for where it ends up.
 		Dist = VSize(End - VRHeadWorld);
 		U = Normal(End - VRHeadWorld);
-		DotScale = FMax(0.04, Dist * Tan(LaserDotDeg * 3.14159265 / 180.0) / 14.0);
+		DotScale = FMax(0.02, Dist * Tan(LaserDotDeg * 3.14159265 / 180.0) / 14.0);
 		SinA = 1;
 		if ( !bHasEnd && HitActor != None )
 			SinA = FMax(0.05, Abs(U Dot HitNorm));
 		Pull = FMin(2 + 32 * DotScale * Sqrt(1 - SinA * SinA) / SinA, 0.3 * Dist);
-		DotScale = FMax(0.04, (Dist - Pull) * Tan(LaserDotDeg * 3.14159265 / 180.0) / 14.0);
+		DotScale = FMax(0.02, (Dist - Pull) * Tan(LaserDotDeg * 3.14159265 / 180.0) / 14.0);
 		LaserDot.SetDrawScale(DotScale);
 		LaserDot.SetLocation(End - U * Pull);
 	}
@@ -5717,7 +5717,7 @@ defaultproperties
 	ScopeMinZoom=2.0
 	ScopeRes=512
 	LaserRange=12000
-	LaserDotDeg=0.35
+	LaserDotDeg=0.17
 	LaserBrightness=0.45
 	LaserWidth=0.6
 	LaserFadeIn=0.5
