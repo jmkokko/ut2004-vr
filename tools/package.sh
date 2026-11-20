@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build a release zip: dist/UT2004VR-<version>.zip
 #
-# UT2004VR.u is compiled against BUILDGAME (default C:\UT2004-Clean: a never-started OldUnreal 3374 install with the
+# UT2004VR.u is compiled against BUILDGAME (default C:\UT2004-Build: a never-started OldUnreal 3374 install with the
 # patch players get today) through a temporary ini, so nothing in that install changes; every file the build adds
 # there is removed again. d3d9.dll comes from build-proxy.sh (MSVC, x64, static CRT).
 set -euo pipefail
@@ -9,7 +9,7 @@ HERE="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION=$(grep -o 'Version="[^"]*"' "$HERE/UT2004VR/Classes/VRMutator.uc" | cut -d'"' -f2)
 PVER=$(grep -o 'define UT2004VR_VERSION "[^"]*"' "$HERE/proxy/d3d9proxy.cpp" | cut -d'"' -f2)
 [ "$VERSION" = "$PVER" ] || { echo "version mismatch: VRMutator $VERSION, proxy $PVER"; exit 1; }
-BUILDGAME=${BUILDGAME:-/mnt/c/UT2004-Clean}
+BUILDGAME=${BUILDGAME:-/mnt/c/UT2004-Build}
 PS=/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
 R=$($PS -NoProfile -Command "(Get-Process UT2004,ucc -ErrorAction SilentlyContinue).Id" 2>&1 | tr -d '\r' | head -1)
 [ -z "$R" ] || { echo "UT2004 or UCC is running - abort"; exit 1; }

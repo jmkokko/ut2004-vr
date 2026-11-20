@@ -83,10 +83,10 @@ um video mux /mnt/c/caps/take1.mkv /mnt/c/caps/take1.audio.raw /mnt/c/caps/take1
 1. Bump the version in `UT2004VR/Classes/VRMutator.uc` (`Version`) and `proxy/d3d9proxy.cpp`
    (`UT2004VR_VERSION`); they must match.
 2. `tools/package.sh` compiles `UT2004VR.u` against a clean, never-started install (`BUILDGAME`, default
-   `C:\UT2004-Clean`, on the OldUnreal patch players get today) through a temporary ini, builds the proxy and
+   `C:\UT2004-Build`, on the OldUnreal patch players get today) through a temporary ini, builds the proxy and
    writes `dist/UT2004VR-<version>.zip` and its `.sha256`.
 3. Install from the zip into that clean install (`Install.bat`, or `Installer\Install.ps1 -GameDir ... -Unattended
-   -NoShortcut`), test with `LAB=/mnt/c/UT2004-Clean tools/vtest.sh ...`, uninstall, and reset the install to
+   -NoShortcut`), test with `LAB=/mnt/c/UT2004-Build tools/vtest.sh ...`, uninstall, and reset the install to
    never-started.
 4. Tag `v<version>` and attach the zip and checksum to a GitHub release.
 
