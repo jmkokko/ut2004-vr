@@ -38,6 +38,7 @@ static std::string g_dir;   // folder of this dll (the game's System folder)
 // VR only for a game started by Play-VR.bat (-ini=UT2004VR_Game.ini); any other launch of UT2004 gets the real
 // d3d9 untouched: no hooks, no SteamVR, no log
 static bool g_vrLaunch = false;
+#define UT2004VR_VERSION "0.1.0"   // the release (with UT2004VR.u: VRMutator.Version)
 
 static void Log(const char* fmt, ...)
 {
@@ -1951,6 +1952,7 @@ extern "C" IDirect3D9* WINAPI Proxy_Direct3DCreate9(UINT sdk)
 		return fn ? fn(sdk) : nullptr;
 	}
 	ReadConfig();
+	Log("UT2004VR proxy %s", UT2004VR_VERSION);
 	IDirect3D9* d3d = nullptr;
 	if (g_wantEx)
 	{

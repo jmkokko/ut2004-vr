@@ -82,8 +82,8 @@ defaultproperties
 	HUDType="UT2004VR.VRHUD"
 	DefaultPlayerClassName="UT2004VR.VRPawn"
 	bAllowBehindView=false
-	VRNumBots=4
-	BotSkill=2
+	VRNumBots=7
+	BotSkill=0
 	bWeaponStay=true
 	MinPlayers=0
 	bPlayersMustBeReady=false

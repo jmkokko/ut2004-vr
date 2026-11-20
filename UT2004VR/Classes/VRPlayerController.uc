@@ -5596,6 +5596,7 @@ defaultproperties
 	HeadingTurnRate=2.0
 	bSteerByGaze=true
 	bKeyboardMouse=false
+	GunPitchOffset=-1820
 	KBMGunOffset=(X=16,Y=10,Z=-6)
 	KBMChestBelowEyes=0.32
 	GunLagTime=0.12
@@ -5639,7 +5640,7 @@ defaultproperties
 	bSmoothTurn=false
 	SnapTurnDegrees=45
 	SmoothTurnDegPerSec=120
-	MoveSpeedScale=0.7
+	MoveSpeedScale=1.0
 	bTeleport=true
 	TeleportSpeed=1100
 	TeleportMaxDist=1600
@@ -5655,14 +5656,14 @@ defaultproperties
 	ASTurretFollow=0.15
 	bVRClock=true
 	VRMessageFontBoost=2
-	HudSpread=2.9
-	HudTopUp=0.56
-	HudBottomUp=-0.56
+	HudSpread=1.9
+	HudTopUp=0.44
+	HudBottomUp=-0.65
 	HudLower=0.05
 	HudSize=0.85
 	bMirrorFitHud=true
 	MirrorHudMargin=0.1
-	bDebugLog=true
+	bDebugLog=false
 	bAutoHeight=true
 	bWeapons=true
 	GunOffset=(X=0,Y=0,Z=0)

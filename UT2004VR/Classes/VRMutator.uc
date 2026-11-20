@@ -5,6 +5,8 @@
 //=============================================================================
 class VRMutator extends Mutator;
 
+var const string Version;   // the release (UT2004VR.u and d3d9.dll are released together)
+
 var int BotNameIndex;
 var array<Controller> Named;     // bots that already got their name
 
@@ -18,7 +20,7 @@ function PostBeginPlay()
 	// quickstart off); online the server starts at once
 	if ( DeathMatch(Level.Game) != None && Level.NetMode != NM_Standalone )
 		DeathMatch(Level.Game).bQuickStart = true;
-	Log("UT2004VR: VR mutator in "$Level.Game.Class, 'UT2004VR');
+	Log("UT2004VR: UT2004VR "$class'VRMutator'.default.Version$", VR mutator in "$Level.Game.Class, 'UT2004VR');
 }
 
 function ModifyPlayer(Pawn Other)
@@ -89,4 +91,5 @@ defaultproperties
 	GroupName="UT2004VR"
 	FriendlyName="UT2004 VR"
 	Description="Play in VR: head-tracked view, guns in your hands, VR HUD and menus (needs the UT2004VR d3d9.dll and SteamVR)."
+	Version="0.1.0"
 }

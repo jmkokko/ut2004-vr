@@ -53,10 +53,75 @@ var config array<GripOfs> Grips;   // third-person models that are modelled upsi
 
 defaultproperties
 {
-	VehSeats(0)=(Vehicle="ONSAttackCraft",Offset=(X=0,Y=0,Z=0),bShowMesh=true)
-	VehSeats(1)=(Vehicle="ONSHoverBike",Offset=(X=0,Y=0,Z=0),bShowMesh=true)
-	// the user: the Lightning Gun's lens sat at hand level (raised 8 cm), the Sniper Rifle's too far back, at
-	// your face (15 cm forward); the rest keep ScopeOffset
-	Scopes(0)=(Gun="SniperRifle",Offset=(X=0.04,Y=0,Z=0.15))
-	Scopes(1)=(Gun="ClassicSniperRifle",Offset=(X=0.17,Y=0,Z=0.07))
+	// the tuning from the author's play-testing (HP Reverb-style WMR headset, seated): per-weapon grips for
+	// controller and keyboard modes, scope lenses, vehicle seats. A player's own VRGrip / VRScope / VRSeat
+	// changes are saved over these in UT2004VR.ini. Controller mode by default (VRKeyboard switches).
+	bSaved=True
+	GunOffset=(X=0,Y=0,Z=0)
+	GunScale=1
+	GunPitchOffset=-1820
+	SnapTurnDegrees=45
+	bSmoothTurn=False
+	bHandRelativeMove=False
+	MoveSpeedScale=1
+	UUPerMeter=52.5
+	EyeHeightBonus=0
+	bMatchGameHeight=True
+	bKeyboardMouse=False
+	KBMGrips(0)=(Gun="ShieldGun",Offset=(X=-10,Y=-1,Z=1))
+	KBMGrips(1)=(Gun="AssaultRifle",Offset=(X=-20,Y=4,Z=0))
+	KBMGrips(2)=(Gun="BioRifle",Offset=(X=-14,Y=-1,Z=2))
+	KBMGrips(3)=(Gun="ShockRifle",Offset=(X=-12,Y=4,Z=-10))
+	KBMGrips(4)=(Gun="LinkGun",Offset=(X=0,Y=4,Z=-5))
+	KBMGrips(5)=(Gun="Minigun",Offset=(X=-20,Y=0,Z=0))
+	KBMGrips(6)=(Gun="FlakCannon",Offset=(X=-20,Y=-1,Z=2))
+	KBMGrips(7)=(Gun="RocketLauncher",Offset=(X=-12,Y=-1,Z=-5))
+	KBMGrips(8)=(Gun="SniperRifle",Offset=(X=-14,Y=0,Z=2))
+	KBMGrips(9)=(Gun="ClassicSniperRifle",Offset=(X=-20,Y=0,Z=9))
+	KBMGrips(10)=(Gun="Redeemer",Offset=(X=-30,Y=-1,Z=-1))
+	KBMGrips(11)=(Gun="Translauncher",Offset=(X=-6,Y=0,Z=4))
+	KBMGrips(12)=(Gun="BallLauncher",Offset=(X=-10,Y=0,Z=0))
+	KBMGrips(13)=(Gun="Painter",Offset=(X=-20,Y=0,Z=2))
+	KBMGrips(14)=(Gun="ONSAVRiL",Offset=(X=20,Y=-16,Z=2))
+	KBMGrips(15)=(Gun="ONSGrenadeLauncher",Offset=(X=-8,Y=-2,Z=5))
+	KBMGrips(16)=(Gun="ONSMineLayer",Offset=(X=-12,Y=0,Z=0))
+	KBMGrips(17)=(Gun="ONSPainter",Offset=(X=-4,Y=-2,Z=2))
+	VehSeats(0)=(Vehicle="ONSAttackCraft",Offset=(X=0,Y=0,Z=0),bShowMesh=True,bHideMesh=False)
+	VehSeats(1)=(Vehicle="ONSHoverBike",Offset=(X=0,Y=0,Z=0),bShowMesh=True,bHideMesh=False)
+	VehSeats(2)=(Vehicle="ONSHoverTank",Offset=(X=40,Y=0,Z=-60),bShowMesh=False,bHideMesh=False)
+	VehSeats(3)=(Vehicle="ONSRV",Offset=(X=-10,Y=0,Z=0),bShowMesh=False,bHideMesh=False)
+	VehSeats(4)=(Vehicle="ONSPRVRearGunPawn",Offset=(X=0,Y=0,Z=80),bShowMesh=False,bHideMesh=False)
+	VehSeats(5)=(Vehicle="ONSPRVSideGunPawn",Offset=(X=-10,Y=0,Z=0),bShowMesh=False,bHideMesh=False)
+	VehSeats(6)=(Vehicle="ONSPRV",Offset=(X=-20,Y=10,Z=0),bShowMesh=False,bHideMesh=False)
+	VehSeats(7)=(Vehicle="ONSDualAttackCraft",Offset=(X=90,Y=0,Z=176),bShowMesh=False,bHideMesh=False)
+	VehSeats(8)=(Vehicle="ONSDualACGatlingGunPawn",Offset=(X=-20,Y=0,Z=-40),bShowMesh=False,bHideMesh=False)
+	VehSeats(9)=(Vehicle="ASVehicle_SpaceFighter_Human",Offset=(X=0,Y=0,Z=10),bShowMesh=False,bHideMesh=False)
+	VehSeats(10)=(Vehicle="ONSManualGunPawn",Offset=(X=23,Y=0,Z=60),bShowMesh=False,bHideMesh=False)
+	VehSeats(11)=(Vehicle="ASTurret_Minigun",Offset=(X=20,Y=0,Z=0),bShowMesh=False,bHideMesh=False)
+	VehSeats(12)=(Vehicle="ASVehicle_SpaceFighter_Skaarj",Offset=(X=30,Y=0,Z=10),bShowMesh=False,bHideMesh=False)
+	VehSeats(13)=(Vehicle="ONSShockTank",Offset=(X=0,Y=0,Z=-30),bShowMesh=False,bHideMesh=False)
+	VehSeats(14)=(Vehicle="ASTurret_BallTurret",Offset=(X=50,Y=0,Z=0),bShowMesh=False,bHideMesh=False)
+	VehSeats(15)=(Vehicle="ASTurret_LinkTurret",Offset=(X=70,Y=0,Z=65),bShowMesh=False,bHideMesh=False)
+	VehSeats(16)=(Vehicle="ONSTankSecondaryTurretPawn_IonPlasma",Offset=(X=14,Y=0,Z=20),bShowMesh=False,bHideMesh=False)
+	Scopes(0)=(Gun="SniperRifle",Offset=(X=0.04,Y=-0.02,Z=0.19),Diameter=0)
+	Scopes(1)=(Gun="ClassicSniperRifle",Offset=(X=0.24,Y=-0.01,Z=0.07),Diameter=0)
+	Scopes(2)=(Gun="ZoomSuperShockRifle",Offset=(X=0.06,Y=-0.095,Z=0.35),Diameter=0)
+	Grips(0)=(Gun="ShieldGun",Offset=(X=-2,Y=0,Z=0))
+	Grips(1)=(Gun="AssaultRifle",Offset=(X=-24,Y=5,Z=0))
+	Grips(2)=(Gun="BioRifle",Offset=(X=-4,Y=0,Z=0))
+	Grips(3)=(Gun="ShockRifle",Offset=(X=-6,Y=6,Z=-10))
+	Grips(4)=(Gun="LinkGun",Offset=(X=12,Y=6,Z=-7))
+	Grips(5)=(Gun="Minigun",Offset=(X=-4,Y=2,Z=0))
+	Grips(6)=(Gun="FlakCannon",Offset=(X=-3,Y=1,Z=0))
+	Grips(7)=(Gun="RocketLauncher",Offset=(X=-4,Y=1,Z=-1))
+	Grips(8)=(Gun="SniperRifle",Offset=(X=-4,Y=2,Z=-1))
+	Grips(9)=(Gun="ClassicSniperRifle",Offset=(X=-20,Y=0,Z=6))
+	Grips(10)=(Gun="Redeemer",Offset=(X=-22,Y=0,Z=-1))
+	Grips(11)=(Gun="Translauncher",Offset=(X=-2,Y=1,Z=0))
+	Grips(12)=(Gun="BallLauncher",Offset=(X=-1,Y=1,Z=0))
+	Grips(13)=(Gun="Painter",Offset=(X=-3,Y=0,Z=1))
+	Grips(14)=(Gun="ONSAVRiL",Offset=(X=10,Y=-10,Z=0))
+	Grips(15)=(Gun="ONSGrenadeLauncher",Offset=(X=0,Y=0,Z=3))
+	Grips(16)=(Gun="ONSMineLayer",Offset=(X=-1,Y=1,Z=-1))
+	Grips(17)=(Gun="ONSPainter",Offset=(X=4,Y=-3,Z=2))
 }
