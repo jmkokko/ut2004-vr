@@ -110,6 +110,7 @@ static bool g_mockJump = false;
 static bool g_mockSitDown = false;   // MockDemo=c: worn, standing 45 cm off to one side, then sitting down at the desk (frame 1200; in the main menus 2 s after the panel is placed)
 static bool g_mockHandAim = false;   // MockDemo=e: as b (fire to join, head still), the right hand points 30 deg right, from frame 3000 30 deg left
 static bool g_mockJoinTurn = false;  // MockDemo=d: as b (fire every 500 frames to join), then the head turns 40 deg (frame 2500) and 80 deg, looking 20 deg down (frame 3500)
+static bool g_mockPhoto = false;     // MockDemo=g: as f, but head still and the gun raised to aiming height, wrist steady (README screenshots)
 static bool g_mockGunQuiet = false; // MockDemo=f: as 4 (hand held out), but the trigger pressed once only (to join); the rest from TestExec (VRTapBtn)
 static bool g_mockJoin = false;      // MockDemo=b: still head; the trigger pressed every 500 frames (skips an intro, joins the match), no other input
 static bool g_mockBehind = false;    // MockDemo=a: the main menus' panel placed while the headset lay on the desk; 2 s later it is on, facing 120 deg to one side
@@ -136,7 +137,7 @@ static void ReadConfig()
 	if (GetPrivateProfileStringA("VR", "DumpEyes", "", buf, sizeof buf, ini.c_str())) g_dumpEyes = buf[0] == '1';
 	if (GetPrivateProfileStringA("VR", "DumpEyesStart", "", buf, sizeof buf, ini.c_str())) g_dumpStart = std::max(1, atoi(buf));
 	if (GetPrivateProfileStringA("VR", "DumpEyesStep", "", buf, sizeof buf, ini.c_str())) g_dumpStep = std::max(1, atoi(buf));
-	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4' || buf[0] == 'f'; g_mockGunQuiet = buf[0] == 'f'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b' || buf[0] == 'd' || buf[0] == 'e'; g_mockHandAim = buf[0] == 'e'; g_mockJoinTurn = buf[0] == 'd'; g_mockSitDown = buf[0] == 'c'; if (g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSitDown || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
+	if (GetPrivateProfileStringA("VR", "MockDemo", "", buf, sizeof buf, ini.c_str())) { g_mockDemo = buf[0] == '1'; g_mockDemo2 = buf[0] == '2' || buf[0] == '3'; g_mockPitchRoll = buf[0] == '3'; g_mockGun = buf[0] == '4' || buf[0] == 'f' || buf[0] == 'g'; g_mockGunQuiet = buf[0] == 'f' || buf[0] == 'g'; g_mockPhoto = buf[0] == 'g'; g_mockSeated = buf[0] == '5'; g_mockHeading = buf[0] == '6'; g_mockJump = buf[0] == '7'; g_mockCrouch = buf[0] == '8'; g_mockLookAway = buf[0] == '9'; g_mockBehind = buf[0] == 'a'; g_mockJoin = buf[0] == 'b' || buf[0] == 'd' || buf[0] == 'e'; g_mockHandAim = buf[0] == 'e'; g_mockJoinTurn = buf[0] == 'd'; g_mockSitDown = buf[0] == 'c'; if (g_mockPhoto || g_mockLookAway || g_mockBehind || g_mockJoin || g_mockSitDown || g_mockSeated || g_mockHeading || g_mockJump || g_mockCrouch) g_mockDemo2 = true; }
 	if (GetPrivateProfileStringA("VR", "PanelDistance", "", buf, sizeof buf, ini.c_str())) g_panelDist = std::max(0.5f, std::min(4.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenDistance", "", buf, sizeof buf, ini.c_str())) g_screenDist = std::max(0.5f, std::min(10.0f, (float)atof(buf)));
 	if (GetPrivateProfileStringA("VR", "ScreenWidth", "", buf, sizeof buf, ini.c_str())) g_screenWidth = std::max(0.4f, std::min(10.0f, (float)atof(buf)));
@@ -1658,7 +1659,8 @@ static void AfterPresent(UINT bbW, UINT bbH)
 			V3 fw{ 0.9811f, 0.1730f, -0.0872f }, up0{ 0.0858f, 0.0151f, 0.9962f };
 			V3 rt{ up0.y * fw.z - up0.z * fw.y, up0.z * fw.x - up0.x * fw.z, up0.x * fw.y - up0.y * fw.x };
 			V3 up{ up0.x * cosf(ra) + rt.x * sinf(ra), up0.y * cosf(ra) + rt.y * sinf(ra), up0.z * cosf(ra) + rt.z * sinf(ra) };
-			Send("R 1 0.35 0.18 1.30 %.4f %.4f %.4f %.4f %.4f %.4f", fw.x, fw.y, fw.z, up.x, up.y, up.z);
+			if (g_mockPhoto) Send("R 1 0.40 0.17 1.40 0.9950 -0.0700 0.0700 -0.0700 0.0000 0.9975");   // raised, aiming just left of centre
+			else Send("R 1 0.35 0.18 1.30 %.4f %.4f %.4f %.4f %.4f %.4f", fw.x, fw.y, fw.z, up.x, up.y, up.z);
 			int fire = (g_frames >= 385 && (g_frames - 385) % 300 < 7) ? 1 : 0;   // fire before each dump
 			int alt = (g_frames >= 440 && (g_frames - 440) % 300 < 25) ? 1 : 0;   // then a short alt-fire
 			int next = (g_frames >= 500 && (g_frames - 500) % 300 < 5) ? 1 : 0;   // next weapon between dumps

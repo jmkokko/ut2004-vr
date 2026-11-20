@@ -1,196 +1,232 @@
 # UT2004VR
 
-Half-Life: Alyx-style VR camera and locomotion for Unreal Tournament 2004 (OldUnreal patch 3374, 64-bit),
-on a SteamVR headset. Walk, teleport and look around UT2004 maps in true stereo, and shoot the way you do in Alyx: the gun (the weapon's complete third-person model) is in your
-right hand, and shots, beams and projectiles leave its muzzle along its barrel, with no aim assist.
+**Unreal Tournament 2004 in virtual reality.** Play UT2004 in a SteamVR headset with Half-Life: Alyx-style
+controls: the gun in your hand, aimed by pointing, a true stereo view of the arenas, and the game's own HUD and
+menus floating in front of you.
 
-## How it works
-| Part | What it does |
-|---|---|
-| `UT2004VR/` (UnrealScript) | `VRGame` gametype; `VRPlayerController` drives the head-tracked camera, room-scale walking (the capsule follows your head), smooth locomotion, snap/smooth turn, teleport arc and crouch/jump; each eye renders into its own `ScriptedTexture` with `DrawPortal` (square pixels, correct projection), with the comfort vignette, blink fades and a hidden eye tag; `VRHUD` triggers both eye renders each frame; `VRLink` receives poses over localhost UDP. |
-| `proxy/` (C++, `d3d9.dll`) | Hooks D3D9 `CreateTexture` to find the two eye render targets (left/right by the corner tag) and `Present`, copies them into D3D11 textures and submits them to SteamVR with crop bounds that turn UT's symmetric portal FOV into the real per-eye frustum. After `WaitGetPoses` it sends head, hand, stick and eye data to the game. With no headset it runs a mock pose (and `MockDemo=1` scripts the sticks) for flat testing. |
+[![Latest release](https://img.shields.io/github/v/release/jmkokko/ut2004-vr)](https://github.com/jmkokko/ut2004-vr/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Controls (default SteamVR bindings: Touch and HP Reverb G2, plus Index, Vive, WMR)
-| Input | Action |
+![The Flak Cannon held in the right hand, its aiming laser running down a corridor in DM-Rankin, with the health, ammo and score HUD around the view](docs/images/flak-in-hand.jpg)
+
+## Features
+
+- **The gun is in your hand.** Point the controller to aim; shots, beams and projectiles leave the muzzle. An
+  aiming laser, recoil, and no aim assist.
+- **True stereo, head-tracked.** Both eyes are rendered by the game at your head position; walk around your room
+  with collision, or play seated.
+- **Smooth locomotion, snap or smooth turn, teleport**, and a comfort vignette.
+- **Any game type against bots** (Deathmatch, Onslaught, Assault, Single Player...), started from UT2004's own
+  menus, which float in front of you.
+- **Vehicles and turrets** aimed with your controller, including Assault's space fighters.
+- **Zoom in a scope lens** on the gun, and the **guided Redeemer** seen through a window at the warhead's tip.
+- **The game type's own HUD**, scoreboard and messages, with Assault's objective markers placed in 3D.
+- **Left-handed mode** and a **keyboard-and-mouse mode** (the headset still looks around).
+- Starting UT2004 the normal way still gives you the plain, flat game.
+
+| | |
 |---|---|
-| Left stick | Move forward/back and strafe along your chair's forward. **Seated head steering:** while moving (any direction), looking aside turns the view that way, faster the bigger the look angle (`bSteerByGaze`, `SteerGain=1.5` deg/s per degree, `SteerDeadzone=8`, `SteerMaxDegPerSec=120`); the chair's forward is set at calibration / recenter |
-| Left grip | Jump (in a vehicle: jump / rise) |
-| Left trigger | Dodge toward where the left stick points (left/right/forward/back); ignored with the stick centred |
-| Right stick back | Crouch while held (physical crouching also works); jumping or dodging stands you up until you let go. In a vehicle: duck / descend |
-| Left Y | Menu (Esc): opens UT's menu, or closes the top menu page. **Hold for 0.8 s: recenter** (height and facing) |
-| Left X | Scoreboard on/off (also `VRScores` or UT's show-scores key, F1): UT's own scoreboard for the game type, in the HUD layer in place of the HUD, as in 2D (also while dead). Without the original HUD (`bVROriginalHud=False`) it comes on its own curved panel that stays put while it's up (`ScoreboardDistance=1.0`, `ScoreboardWidth=1.5` m in `UT2004VR_proxy.ini`); `bVRScoreboardOriginal=False` brings back the drawn VR HUD scoreboard (`ScoresWidthDeg=40`) |
-| Fire / alt-fire while spectating | Next player / back to your own camera. UT's own spectator bar ("Now viewing", name, score, how to switch) floats below eye level in front of you (`SpectatorBarDistance=1.0`, `SpectatorBarWidth=1.3`, `SpectatorBarDrop=0.3` m in `UT2004VR_proxy.ini`) |
-| (automatic) | UT's game messages (first blood, sprees, pickups, kills, chat) in the VR HUD with UT's own positions, colours and fonts. `bVRMessages=False` turns them off, `VRMessageFontBoost=2` sets how many font sizes bigger than UT's choice |
-| Right stick left/right | 45° snap turn (`VRSnap 30`, or `VRSnap 0` for smooth turn) |
-| Right stick forward | Aim the teleport arc; release to blink there |
-| Right stick click | Use: enter the vehicle or turret you stand at; in one, get out |
-| Right trigger | Fire; when dead, respawn; with the menu open, click. A faint red aiming laser runs from the muzzle to whatever the gun points at; it hides while firing and fades back in (`bLaser`, `LaserBrightness=0.45`, `LaserWidth=0.6`, `LaserFadeIn=0.5`, `LaserRange`, `LaserDotSize`) |
+| ![Zoomed with the Lightning Gun: the magnified view appears in a round lens above the gun](docs/images/scope-lens.jpg) | ![The Redeemer held in Onslaught on ONS-Torlan](docs/images/redeemer-onslaught.jpg) |
+| **Scope lens.** Zoom shows in a lens on the gun, not across your whole view. | **Every weapon in hand**, here the Redeemer in Onslaught. |
+| ![Riding a guided Redeemer: the map through a round window with UT's red scope markings](docs/images/redeemer-window.jpg) | ![Sitting on a Manta in Onslaught, its hull in front of you](docs/images/manta-cockpit.jpg) |
+| **Guided Redeemer.** You ride the warhead, looking out through its window. | **Vehicles.** You sit in them; the right controller aims. |
+
+<sub>Pictures from the desktop mirror of the headset view (one eye), taken with the mod's simulated headset.</sub>
+
+## Requirements
+
+- **Unreal Tournament 2004 with OldUnreal's patch 3374, 64-bit, Preview 23 or newer.** OldUnreal's
+  [installer](https://www.oldunreal.com) sets up the game with the latest patch; to update an existing install, get
+  the [patch](https://github.com/OldUnreal/UT2004Patches/releases). Tested on Release Candidate 3.
+- **SteamVR** and a headset with motion controllers. Default bindings are included for Quest/Touch, Valve Index,
+  HTC Vive and Windows Mixed Reality (HP Reverb).
+- **Windows 10 or 11.**
+
+## Install
+
+1. Download `UT2004VR-<version>.zip` from the [latest release](https://github.com/jmkokko/ut2004-vr/releases/latest)
+   and unzip it anywhere.
+2. Run **`Install.bat`**. It finds your UT2004 folder (or asks for it), checks the game version, copies the mod into
+   the game's `System` folder and offers a desktop shortcut.
+
+That's all: nothing outside the game's `System` folder changes. To remove the mod, run
+`System\UT2004VR-Uninstall.bat`.
+
+<details>
+<summary>Installing by hand</summary>
+
+Copy the contents of the zip's `System` folder into your UT2004's `System` folder. If a `d3d9.dll` from another
+tool (ReShade, dgVoodoo) is already there, keep a copy of it: UT2004VR needs that file name.
+</details>
+
+## Getting started
+
+1. Start **SteamVR** with the headset and controllers on.
+2. Run the **UT2004 VR** shortcut (or `System\Play-VR.bat`). The intro plays around you, then the main menu
+   appears in front of you.
+3. Point the right controller at the menu and pull the trigger to click. Choose **Instant Action**, a game type and
+   a map, and start.
+4. Pull the trigger to join the match.
+
+Tips:
+- **Hold the left Y button (0.8 s) to recenter** your height and facing, for example after sitting down.
+- You can play seated or standing: your eyes are placed at a UT player's eye height either way
+  (`bMatchGameHeight=False` uses your real height instead).
+- `Play-VR.bat DM-Antalus` (any map name) skips the menus and starts a deathmatch with bots.
+- VR settings are kept apart from your normal ones, in `UT2004VR_Game.ini`. It is made from your `UT2004.ini` on
+  the first run; delete it to start again from your current settings.
+
+## Controls
+
+These are the default SteamVR bindings (Touch and Reverb shown). You can change them in SteamVR's
+**Controller Bindings** while the game runs.
+
+**On foot**
+
+| Control | Action |
+|---|---|
+| Left stick | Move. Looking to the side while moving turns you that way. |
+| Right stick left / right | Snap turn (45°) |
+| Right stick forward | Aim the teleport arc; release to teleport |
+| Right stick back (hold) | Crouch (crouching for real works too) |
+| Right stick click | Use: get in or out of a vehicle or turret |
+| Right trigger | Fire (also: respawn, click in menus) |
 | Right grip | Alt-fire |
-| Right A | Next weapon |
-| Right B | Previous weapon |
-| Walk in your room | The pawn follows your head, with collision |
-| **In a vehicle** | |
-| Left stick | Drive and steer (forward/back = throttle, left/right = steer; hovering and flying vehicles strafe) |
-| Right controller | Every vehicle, turret and gunner seat: aims, as with a weapon - the crosshair is where it points, the guns turn there and the vehicles that face their aim (Manta, Raptor, Cicada) turn toward it; your head looks around freely (`bVehicleHandAim`; False: your gaze aims and the right stick turns the Manta, Raptor and Cicada) |
-| Left stick click | Horn |
-| Left trigger or left grip / right stick back | Jump or rise (Manta, Raptor) / duck or descend |
-| Right A / B | Next / previous seat (free seats only). Assault's vehicles keep UT's own: the fighter's next target, the turret group's next turret |
+| A / B | Next / previous weapon |
+| Left grip | Jump |
+| Left trigger + left stick | Dodge in that direction |
+| Left Y | Menu. **Hold: recenter** |
+| Left X | Scoreboard |
+| Trigger / grip while spectating | Next player / back to your own view |
+
+**In vehicles and turrets**
+
+| Control | Action |
+|---|---|
+| Left stick | Drive and steer (hovering and flying vehicles strafe) |
+| Right controller | Aim: the crosshair is where it points. The Manta, Raptor and Cicada turn toward it. |
 | Right trigger / grip | Fire / alt-fire |
-| Turrets and gunner seats (both modes) | When the crosshair nears the side of your view (`TurretEdgeDeg=35` deg from where you look), the seat's view turns slowly toward it (`TurretEdgeTurn=3` deg/s per deg past it, up to `TurretEdgeMaxDegPerSec=45`; 0 = off) |
-| Keyboard mode, any vehicle or turret | The mouse aims (the crosshair is where it aims, the guns turn there, the Manta / Raptor / Cicada turn toward it with your view, as on foot); your head looks around freely |
-| **In a space fighter** (Assault) | |
-| Right controller | Aims: the fighter's crosshair (the only one) follows where it points, as with a weapon; the ship turns toward it, faster the further it is off the nose (`FighterGazeGain=3` deg/s per deg), round the world's vertical like an aircraft, banking into the turn (`FighterBankPerDeg=1.5`, up to `FighterMaxBank=45`) and levelling out on target. Your head looks around freely |
-| Left stick | Throttle (forward / back) and strafe |
-| Left trigger + left stick left/right | Roll by hand; left grip levels the wings |
-| Right stick | Nothing while the controller aims (`bVehicleHandAim=False`: pitch and yaw, as the mouse does, `FighterSteer=2000`) |
-| Right A / B | Next / previous target |
+| Left grip, left trigger / right stick back | Jump or rise / duck or descend |
+| A / B | Next / previous seat |
+| Left stick click | Horn |
 
-**Left-handed:** Settings > Player > Weapon Hand. Controller mode: Left puts the gun in your left hand and every control on the other side (SteamVR's mirrored `/actions/lefty` bindings, A/B <-> X/Y on Touch and Reverb); Right (and Centre, Hidden) is as above. Keyboard mode: the gun sits to the right, left or in the middle, or Hidden shows none.
+**In Assault's space fighters**
 
-Index uses left B for the menu and left A for the scoreboard. WMR uses the left menu button and the left touchpad click, with the right touchpad for next weapon and the right menu button for previous weapon. Vive has no scoreboard button. Remap anything in SteamVR's Controller Bindings while the game runs. The cycle of A/B includes the Redeemer and Ion Painter.
+| Control | Action |
+|---|---|
+| Right controller | Aim; the ship turns toward the crosshair and banks into the turn |
+| Left stick | Throttle and strafe |
+| Left trigger + left stick left / right | Roll; the left grip levels the wings |
+| A / B | Next / previous target |
 
-Weapons: `[UT2004VR.VRPlayerController]` `bWeapons=False` gives travel-only mode; `GunOffset` (uu, aim space: shifts the gun relative to the controller) and `GunPitchOffset` adjust how the gun sits in
-the hand. Each gun turns around its handle: the point where its third-person model hangs from a hand. Console, live, saved per
-weapon: `VRGrip <forward> <right> <up>` moves the current gun in your hand (gun axes, uu ≈ 2 cm; e.g. `VRGrip -4 0 2`),
-`VRGripInfo` (says when it is inherited), `VRGripReset`, `VRGunFlip` (upside down). Global: `VRGun <fwd> <right> <up>` (hand offset, aim axes),
-`VRGunPitch <deg>`. In `UT2004VR.ini` they live under `[UT2004VR.VRTuning]`, e.g.
-`Grips=(Gun="ShockRifle",Offset=(X=-4,Y=0,Z=2))`; `[UT2004VR.VRGame]` `ExtraWeapon=XWeapons.ShockRifle`
-hands out an extra gun at spawn.
+**Other controllers**
 
-Height: `bMatchGameHeight=True` (default) puts your eyes at UT's stock eye height (82 uu ≈ 1.56 m) whatever your real
-height or seated/standing; set it False for your real height. Seated, the height is calibrated from a ~1.5 s average and then slowly re-levelled
-(`bSeatedAutoLevel`, `AutoLevelSeconds=15`): posture changes and tracking drift fade out, quick ducks still count. The
-recenter button re-measures. `VRHeight <uu>` raises (or lowers) your eyes
-relative to that, e.g. `VRHeight 10` ≈ +19 cm, saved. `VRScale <uu per m>` (default 52.5) changes the world's size around you.
+| Controller | Differences |
+|---|---|
+| Valve Index | Left B: menu. Left A: scoreboard. |
+| Windows Mixed Reality | Left menu button: menu. Left touchpad click: scoreboard. Right touchpad: next weapon; right menu button: previous weapon. |
+| HTC Vive | No scoreboard button. |
 
-HUD (UT2004's own icons and digits): health cross + health lower left, ammo + the current ammo icon lower right,
-adrenaline pill + adrenaline upper right, and frags / spread to the leader / rank upper left, the match clock top centre (time left, or time played without a time limit; `bVRClock`); head-locked at a real stereo depth
-(`bVRHud`, `HudDistance=2.5` m, `HudSpread=1.9` overall, `HudSize=0.85` digit and icon size, `HudTopUp=0.44` and `HudBottomUp=-0.65` row heights, `HudLower=0.05` moves the whole HUD down, messages and scoreboard included); while dead it says how to respawn.
-With `bVROriginalHud=True` (the default) the headset shows the game type's own HUD instead of these items: Assault's
-round and reinforcement timers, Onslaught's radar map and node row, the team health and ammo widgets... It is drawn
-by a hidden copy of that HUD and captured like the scoreboard, as a flat layer where the VR HUD's corners are
-(`OriginalHudScale=1.0` times as wide; it refreshes about 11 times a second). What it points at in the world is drawn
-in 3D instead, on the object itself: Assault's objective markers (icon, defender shield, progress bar; blocked: icon +
-distance; out of view: an arrow at the layer's edge), its tracked vehicle and game object, and an Assault turret's crosshair (with UT's green "will hit" square) on the point it hits. Assault turrets turn toward your gaze through their own steering and inertia (`ASTurretFollow=0.15` s).
+## Options
 
-Bots: `[UT2004VR.VRGame]` `BotNames=Alpha,Bravo,Charlie` uses your names in order (Alpha2… when they run out), empty keeps UT's roster names; `VRNumBots=4`, `BotSkill=2` (0 Novice … 3 Skilled … 7 Godlike); a URL `?NumBots=`/`?Difficulty=`
-overrides them. When you die, pull the trigger to respawn.
+**Left-handed.** Settings > Player > **Weapon Hand: Left** puts the gun in your left hand and mirrors every control.
 
-Console: `VRStatus`, `VRSpeed 0.7` (walking speed with the stick, as a share of UT's; default 0.7), `VRScale 52.5` (uu per meter). Settings are saved to `System/UT2004VR.ini`.
-Proxy settings live in `System/UT2004VR_proxy.ini`: `GPUShare` (1 = zero-copy D3D9Ex sharing, 0 = CPU copy fallback), `RenderScale` (default 0.65 → 2048 px per eye; 1.0 = SteamVR's recommended size), `Port`, and the test options `Mock`, `MockDemo` (1 = scripted sticks, 2 = still head, 3 = pitched and rolled head) and `DumpEyes`. `bCalib=True` in `UT2004VR.ini` shows projection-test markers.
-The desktop window shows a normal mono view; keep it small (1280x720), since it costs GPU time.
+**Keyboard and mouse.** Type `VRKeyboard` in the console (the `~` key) to switch. UT's own keys and mouse play the
+game while the headset looks around freely. The gun sits in front of you; Weapon Hand places it right, left, in the
+middle, or hides it. `VRKeyboard` again switches back.
 
-## Keyboard/mouse mode
-`VRKeyboard` in the console (saved), or `bKeyboardMouse=True` under `[UT2004VR.VRTuning]`:
-- UT's own controls: WASD, double-tap dodge, jump, crouch, walk and your UT key bindings; the mouse turns and aims.
-- The mouse aims and turns the view (yaw and pitch); the headset is freelook on top of that and never turns you, and the gun stays put in view while only the mouse moves. Press recenter or toggle the mode to
-  re-centre the chair's forward.
-- Each gun has its own keyboard-mode offset: `VRGrip <forward> <right> <up>` in this mode moves the current gun on screen and saves it as `KBMGrips` (separate from the controller-mode `Grips`), e.g. `VRGrip 0 0 -4` lowers it; `VRGripReset` clears it.
-- The gun sits at a fixed spot in front of the chest (`KBMGunOffset`, `KBMChestBelowEyes`) and points where the mouse
-  aims; shots, beams and the laser follow it. Tilting the aim with the mouse keeps it in the same place in view. When
-  you move it lags a little and catches up (`GunLagMax=0.015` m, `GunLagTime=0.12` s, easing in and out over `GunLagSmooth=0.15` s; `GunLagMax=0` turns it off).
-  Turning your head doesn't move it (it sits on your head without the turning arc), so it stays put in the room.
-  When the headset loses its position (WMR falls back to rotation only) the eyes' turning arc is added
-  (`NeckModelMode=2`; 1 always, 0 never; `NeckForward=0.09`, `NeckUp=0.10` m).
-  The SteamVR controllers do nothing in this mode.
-- The UT2004 desktop window needs keyboard/mouse focus (click into it).
+**Comfort and fit** (console commands, saved):
 
-## Menu in VR
-Press Escape: UT's menu floats in the headset as a panel 1.4 m in front of where you faced, fixed in the room. In
-controller mode, point the right controller at it (the menu cursor follows) and pull the trigger to click: the game
-calls the control's own press/release/click handlers (buttons, tabs, checkboxes, dropdowns, lists; hold the trigger to drag a slider), so no Windows mouse input is involved and the UT2004 window doesn't need focus.
-In keyboard/mouse mode, use the mouse as usual. Debug: `VRMenuDump` logs every clickable control with its position,
-`VRMenuClick "0.40 0.74"` clicks at window uv.
+| Command | What it does |
+|---|---|
+| `VRSnap 30` | Snap turn angle; `VRSnap 0` turns smoothly |
+| `VRSpeed 0.7` | Walking speed, as a share of UT's |
+| `VRHeight 10` | Raise your eyes by 10 units (about 19 cm); negative lowers them |
+| `VRGrip -4 0 2` | Move the gun in your hand: forward, right, up (units of about 2 cm). Per weapon. |
+| `VRGripReset` | Back to the default grip for this weapon |
 
-## Recording what the headset shows
-The UT2004 window mirrors one eye, with the console and menus drawn on top (`MirrorEye=0` left / `1` right / `-1` off, `MirrorFill=1` crops to fill the window,
-`0` letterboxes, `MirrorZoom=1.08` widens it slightly past the lens edge) in `UT2004VR_proxy.ini`, including the HUD, gun and laser. With the VR HUD on, the window is cropped around the HUD instead
-(`bMirrorFitHud=True` in `UT2004VR.ini`): centred on it and just big enough for all of it at any window aspect (`MirrorHudMargin=0.1` around its corners). Record it with game-only audio using the
-universal-modder toolkit (from WSL):
-```bash
-um win record --exe UT2004.exe --out 'C:\caps\take1' --seconds 60
-um video mux /mnt/c/caps/take1.mkv /mnt/c/caps/take1.audio.raw /mnt/c/caps/take1.json take1.mp4
-```
-For a 16:9 video, set the window to 1600×900 or 1920×1080 (`WindowedViewportX/Y` in `UT2004VR_Game.ini`); a very wide window
-crops the top and bottom of the eye view, HUD rows included.
+Every setting is listed in [the configuration reference](docs/CONFIGURATION.md).
 
-## Build and install (from WSL)
-```bash
-./build.sh         # copies UT2004VR/ to the lab install, adds EditPackages=UT2004VR, runs ucc make
-./build-proxy.sh   # MSVC x64 build of d3d9.dll; installs it, openvr_api.dll, actions and Play-VR.bat
-```
-The lab install is `C:\UT2004-VRLab`, a copy of `C:\UnrealTournament2004`. Set `LAB=...` to target another
-3374 install. UT2004.ini is left stock apart from `EditPackages` (needed by `ucc make`). VR runs only when the game
-is started by `Play-VR.bat`; any other launch is plain UT2004 (the proxy passes straight through). To uninstall,
-delete `System\d3d9.dll`; the rest is inert without it.
+## More about the features
 
-## Play
-1. Install SteamVR, connect the headset and start SteamVR.
-2. Run `C:\UT2004-VRLab\System\Play-VR.bat`: UT2004's main menu floats in the headset. Point and pull the trigger
-   (or use the mouse in keyboard/mouse mode) through Instant Action: gametype, map, rules, bots, mutators. The game
-   starts in VR whatever you pick. `Play-VR.bat DM-Rankin` (any map) skips the menu and goes straight into VRGame.
-   `Play-VR.bat` runs the game with its own settings file, `UT2004VR_Game.ini`, made on its first run from
-   `UT2004.ini` (delete it to start over from your current settings).
+<details>
+<summary><b>Weapons, laser and recoil</b></summary>
 
-UT's startup intro (the NVIDIA logo Gorge steps out of) plays in the headset in 3D, from the intro's own camera:
-you ride along with it, your head tracking on top (yaw follows the camera, the horizon stays level). The trigger
-or a click skips it. `Play-VR.bat` sets `LocalMap=NvidiaLogo.ut2?Mutator=UT2004VR.VRMutator` in `UT2004VR_Game.ini` for that.
+Each gun is the weapon's full model, held by its handle. A faint red laser runs from the muzzle to what you're
+aiming at; it hides while you fire. Shots kick the gun back and up, then it settles. Turn any of these down in
+[the configuration](docs/CONFIGURATION.md#weapons-laser-and-recoil); `bWeapons=False` is a walk-only mode.
+</details>
 
-How: `VRConsole` (UT's console class, `Console=UT2004VR.VRConsole` in `UT2004VR_Game.ini`, set by `Play-VR.bat`) adds
-`?Mutator=UT2004VR.VRMutator` to every game the menus start; the mutator makes you a `VRPlayerController` and names
-the bots (`BotNames` under `[UT2004VR.VRGame]` applies in every gametype). In the main menus, where no
-VR game runs, the console drives the menu panel and the proxy draws the headset view itself (a dark room with the
-panel). Single Player (tutorials, ladder) starts its matches past the console; a local game that comes up without VR is
-loaded again once with the VR mutator (a few seconds). Joining a server (including your own dedicated server) runs
-without VR (the server decides the player class): you then get the game window on a big screen in the room
-(`ScreenDistance=2.4`, `ScreenWidth=3.2` m in `UT2004VR_proxy.ini`), played flat with keyboard and mouse. Full VR in network games: see `docs/NETWORK_PLAN.md` (parked until local
-gameplay is done).
-Zoom (Lightning Gun, Sniper Rifle alt-fire): instead of narrowing the whole view, which in a headset swings the world
-with every head movement, the zoomed view appears in a round scope lens with a reticle. Its centre is where the shot
-goes. Controller mode: the lens sits on the gun above your hand (`ScopeOffset`, `ScopeDiameter` 0.10 m); raise the
-gun to your eye. Per weapon: `VRScope <forward> <right> <up> [diameter]` in the console (metres from the gun's handle)
-for the weapon in your hand, saved; `VRScope` alone shows it, `VRScopeReset` goes back to the default. While zoomed,
-the right stick forward / back zooms in / out (`ScopeStickZoom=0.6`; 0 = off), up to ~24x; alt-fire again leaves the zoom. Keyboard mode: it floats ahead along your aim, facing it and level, a real object in the scene (looking around
-doesn't turn it) (`ScopeKBMDistance` 0.54 m, `ScopeKBMDiameter`
-0.21 m). At least `ScopeMinZoom` (2x), more as UT's zoom closes in (up to ~11x). `bScope=false` turns it off. All in
-`[UT2004VR.VRPlayerController]` of `UT2004VR.ini`.
-Guided Redeemer (alt-fire): you ride the warhead, your head tracked on top; the view follows its flight direction
-(turns and dives as in 2D) but not its banking (`bRedeemerRoll=true` adds that). Steer with the mouse (keyboard mode)
-or the right stick (`RedeemerSteer=2000`, negative inverts the pitch); fire / the trigger detonates. You look out
-through a round window at its tip with UT's own scope markings (`bRedeemerWindow`, `RedeemerWindowDeg=80`,
-`RedeemerWindowDist=0.6` m); it sits fixed in the warhead, so turning your head shows its rim.
-In vehicles you aim with your gaze only; the mouse does nothing. Guns UT turns at a set rate (the Goliath cannon's
-rubber band) lag behind your gaze, slower than in 2D (`TurretSpeed=0.6`; `InstantTurretSpeed` in turns/s slows the
-ones UT snaps to the view, 0 = instant); the laser shows where the barrel really points. The Manta and Raptor turn
-toward your gaze; your view follows them gently (`GazeSteerFollow=0.3`), so a glance turns you to face that spot,
-and holding your head to the side keeps turning slowly. On gunner seats and turrets the view follows the vehicle
-under you, never the gun.
-Behind view in vehicles and on turrets (F): a chase camera at UT's own distance behind the vehicle, along its heading
-(not the mouse or your head), looking down `VehicleBehindPitch=12` degrees (`VehicleBehindScale=1.0` scales the
-distance); you still aim by gaze and see your character and the whole vehicle. The mouse wheel changes seats.
-Behind view on foot (F / `behindview 1`): the camera sits behind you over your right shoulder (`BehindDistance=1.8`,
-`BehindHeight=0.45`, `BehindRight=0.35` m), following your body's facing, not your head; it stops at walls. The gun
-hangs in your character's hand, and the laser, shots and beams start at its muzzle there.
-Vehicles: you sit at the vehicle's own driver camera (first person), your head tracked on top, the heading
-following the vehicle (yaw only, the horizon stays level). Driving uses UT's controls (keyboard/mouse mode).
-Vehicle guns aim at what you look at (UT turns them toward your view). The laser runs from the active gun's muzzle to
-where its shots land; `VRVehicleLaser` switches to a small crosshair there instead (green on target, orange while a
-turret is still turning or can't reach).
-Alt-fire (right mouse / right grip) is each vehicle's second weapon; the mouse wheel (or A/B) changes seats: driver,
-then the gunner turrets (number keys 1, 2, 3 too). Flying vehicles (Raptor) and the Manta are drawn around you
-(`VehSeats` in `[UT2004VR.VRTuning]`); per vehicle, `VRSeat <forward> <right> <up>` (uu) moves your seat,
-`VRSeatMesh` shows/hides the vehicle model and its guns (hide the Goliath when its turret fills the view),
-`VRSeatInfo` prints both.
-Gametype extras that live in their own HUD or player class (Onslaught's spawn map, Assault objectives) are not
-adapted to VR; Assault crashes at round start in OldUnreal 3374 itself. In the main menus the console knows `VRKeyboard` (switch keyboard/mouse <-> controllers), `VRMenuDump` and
-`VRMenuClick "u v"`. The menu panel's distance and width are `PanelDistance=0.95` and `PanelWidth=1.6` (metres) in
-`UT2004VR_proxy.ini`; it curves around you like SteamVR's own panels (`PanelCurvature=0.6`: 0 flat, 1 centred on your
-head; the big screen too), and is mipmapped so text doesn't shimmer; in the main menus it faces your seated calibration and stays put
-(`PanelFollowDeg=30` makes it come back in front of you after looking that far away for 1.5 s; the Esc menu in a game stays where you faced).
+<details>
+<summary><b>Zoom and scope</b></summary>
 
-No game files are included. Built with AI assistance (Claude Code + the universal-modder toolkit).
-OpenVR SDK © Valve, BSD-3-Clause.
+Zooming (Lightning Gun, Sniper Rifle) doesn't magnify your whole view, which is uncomfortable in a headset.
+Instead a round lens on the gun shows the zoomed picture with a reticle: raise the gun to your eye. While zoomed,
+the right stick forward and back zooms further in and out. Move the lens for the weapon in your hand with
+`VRScope <forward> <right> <up>` (metres).
+</details>
 
-## License
-MIT (see `LICENSE`), for UT2004VR's own code and files. Unreal Tournament 2004 belongs to Epic Games and none of
-its files are included; you need your own copy. `openvr_api.dll` is Valve's OpenVR SDK (BSD 3-clause).
+<details>
+<summary><b>Guided Redeemer</b></summary>
+
+Alt-fire launches the warhead and you ride it, looking out through a round window at its tip with UT's scope
+markings. Steer with the right stick (or the mouse); fire detonates it.
+</details>
+
+<details>
+<summary><b>Vehicles, turrets and gunner seats</b></summary>
+
+You sit in the vehicle's own seat, with your head tracked. The right controller aims every vehicle and turret:
+guns turn to where it points, and the vehicles that face their aim (Manta, Raptor, Cicada) turn toward it. On
+turrets and gunner seats, aiming near the edge of your view slowly turns the seat that way. Behind view (`F` on the
+keyboard) gives a chase camera. Adjust your seat in a vehicle with `VRSeat <forward> <right> <up>`, and
+`VRSeatMesh` shows or hides the vehicle's model around you.
+</details>
+
+<details>
+<summary><b>HUD, scoreboard and menus</b></summary>
+
+The headset shows the game type's own HUD: Onslaught's radar and node row, Assault's timers and objectives, the
+usual health and ammo. Assault's objective markers are drawn on the objectives themselves.
+The scoreboard replaces the HUD while it's up. Menus float in front of you as a curved panel that stays put in the
+room; point and click with the right controller.
+</details>
+
+<details>
+<summary><b>Intro, Single Player and online</b></summary>
+
+UT2004's startup intro plays around you in 3D (the trigger skips it). Single Player matches start in VR too.
+Joining an online server isn't supported in VR: you get the game on a big flat screen in front of you, played with
+keyboard and mouse.
+</details>
+
+## Troubleshooting
+
+| Problem | Try |
+|---|---|
+| Nothing appears in the headset | Start SteamVR before the game, and launch with the **UT2004 VR** shortcut or `Play-VR.bat`. |
+| Facing the wrong way, or the floor is at the wrong height | Hold the left Y button for a second to recenter. |
+| Low frame rate | Lower `RenderScale` in `System\UT2004VR_proxy.ini` (for example to 0.7). |
+| Controls don't match this page | In SteamVR's Controller Bindings, pick the default binding for UT2004VR. |
+| SteamVR crashes when the controllers wake up (WMR) | A driver issue: turn the controllers on before starting the game. |
+| Antivirus warns about `d3d9.dll` | It's the mod's unsigned bridge to SteamVR; the source is in this repository. |
+| Start the VR settings over | Delete `System\UT2004VR_Game.ini` and `System\UT2004VR.ini`. |
+
+**Known limits:** VR is for offline play against bots; online servers run without VR. Onslaught's node health bars,
+CTF flags and Assault's info pods aren't shown in 3D yet.
+
+## Building from source
+
+The mod is an UnrealScript package plus a small `d3d9.dll` that hands the eye images to SteamVR.
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) covers how it works, building, testing with the simulated headset,
+recording and making a release. The development journal is [MODLOG.md](MODLOG.md).
+
+## Credits and license
+
+- [OldUnreal](https://www.oldunreal.com) keeps UT2004 running on modern systems with patch 3374.
+- [OpenVR](https://github.com/ValveSoftware/openvr) © Valve (BSD 3-clause).
+- Built with AI assistance (Claude Code and the [universal-modder](https://github.com/rehan-remade/universal-modder)
+  toolkit).
+
+UT2004VR is released under the [MIT license](LICENSE). Unreal Tournament 2004 belongs to Epic Games; no game files
+are included, so you need your own copy.

@@ -39,7 +39,7 @@ var float GunLagAt;
 var config bool  bSteerByGaze;      // seated head steering: walking forward while looking aside turns the view itself
 var config float SteerGain;         // turn speed in deg/s per degree of look angle (times forward stick)
 var config float SteerDeadzone;     // degrees of look angle that do not steer
-var config float SteerMaxDegPerSec;
+var config float SteerMaxDegPerSec; // ... at most this fast (deg/s)
 var int   ChairYaw;                 // playspace yaw of the chair's forward (set at calibration / recenter)
 var int   ChairPitch;               // your natural head pitch at that moment = "level" in keyboard/mouse mode
 var int   ChairCount;
@@ -48,15 +48,15 @@ var float ChairHistAt, ChairCheckAt;
 var config float ChairHistLife;     // s: how long a look counts toward your chair's forward
 var bool  bChairMeasured;           // chair forward/pitch taken (first calibration, or recenter); respawns keep it
 var bool  bChairYawValid;
-var config bool  bSmoothTurn;
-var config int   SnapTurnDegrees;
-var config float SmoothTurnDegPerSec;
+var config bool  bSmoothTurn;       // right stick turns smoothly instead of in snaps (VRSnap 0)
+var config int   SnapTurnDegrees;   // degrees per snap turn (VRSnap <degrees>)
+var config float SmoothTurnDegPerSec; // smooth turn speed at full stick (deg/s)
 var config float MoveSpeedScale;    // fraction of UT's GroundSpeed at full stick (UT is fast for VR)
-var config bool  bTeleport;
+var config bool  bTeleport;         // right stick forward aims a teleport arc; release to blink there
 var config float TeleportSpeed;     // arc launch speed, uu/s
-var config float TeleportMaxDist;
+var config float TeleportMaxDist;   // longest teleport (uu)
 var config float CrouchHeadMeters;  // physical crouch threshold (head height above floor)
-var config bool  bVignette;
+var config bool  bVignette;         // comfort vignette: the view's edges darken while moving or turning
 var config bool  bVRHud;            // head-locked HUD (health, shield, adrenaline, ammo, score) at a real 3D depth
 var config float HudDistance;       // meters in front of the eyes
 var config float HudSpread;         // scales how far the items sit from the centre of view
@@ -67,7 +67,7 @@ var config float HudBottomUp;       // bottom row height (negative = below the c
 var Font HudBig, HudSmall;
 var config bool  bWeapons;          // false = travel only (no guns)
 var config vector GunOffset;        // gun's visual centre relative to the controller tip, in aim space (uu)
-var config int   GunPitchOffset;
+var config int   GunPitchOffset;    // tilts the gun relative to the controller (rotation units, 65536 = 360 deg; VRGunPitch <deg>)
 var config array<string> FlipGuns;  // exceptions to the up rule (VRGunFlip): roll these 180
 var array<VRTuning.GripOfs> KBMGrips;   // keyboard/mouse mode's own per-weapon offsets (VRGrip in that mode)
 var array<VRTuning.VehSeat> VehSeats;   // per-vehicle seat offset and mesh (VRSeat, VRSeatMesh)
@@ -76,14 +76,14 @@ var bool     bGripCacheKBM;
 var int      GripCacheIdx;
 var array<VRTuning.GripOfs> Grips;  // per-weapon handle offsets (VRGrip), persisted in VRTuning    // tilt the aim down/up relative to the controller (rotator units)
 var config float GunScale;          // first-person meshes are ~1.7x real size (they sit next to the camera)
-var config float MuzzleForward;
+var config float MuzzleForward;     // muzzle this far ahead of the controller before the gun is measured (uu)
 var config bool  bScope;            // zoom (Lightning Gun, Sniper alt-fire): a magnified picture in a round lens
 var config float ScopeDiameter;     // controller mode: lens size (m), held on the gun above your hand
 var config vector ScopeOffset;      // controller mode: lens centre from the gun's handle (m; forward, right, up)
 var config float ScopeKBMDiameter;  // keyboard mode: lens size (m), in the middle of your aim
 var config float ScopeKBMDistance;  // keyboard mode: how far ahead of your eyes (m)
 var config float ScopeMinZoom;      // magnification at the start of a zoom (UT's own zoom raises it)
-var config int   ScopeRes;
+var config int   ScopeRes;          // the scope picture's resolution (pixels)
 var config float ScopeStickZoom;    // controller mode, zoomed: the right stick forward / back zooms in / out at this rate (UT zoom levels per second; 0 = off)
 var array<VRTuning.ScopeOfs> Scopes;   // per-weapon lens (VRScope), saved in VRTuning          // the scope's render target, pixels
 var ScriptedTexture ScopeTex;
@@ -109,12 +109,14 @@ var rotator VehRefR, VehCamR;
 var rotator KBMAimRot, KBMStartRot;
 var float  NextHandMsg;
 var float  TurretPanYaw;             // turrets: the seat's view turned this far (uu) by the crosshair at the view's edge
-var config float TurretEdgeDeg, TurretEdgeTurn, TurretEdgeMaxDegPerSec;
+var config float TurretEdgeDeg;     // turrets and gunner seats: when the crosshair is this far (deg) from where you look, the seat's view turns toward it
+var config float TurretEdgeTurn;    // ... at this many deg/s per degree past that edge
+var config float TurretEdgeMaxDegPerSec; // ... at most this fast (deg/s; TurretEdgeTurn 0 = off)
 var bool   bKBMAimInit;              // a new vehicle in keyboard/mouse mode: the mouse's aim starts at your gaze              // keyboard/mouse mode in a vehicle: UT's own camera rotation (the mouse's aim)        // the vehicle view's frame this tick (UpdateHeadWorld): tracking space -> world as (x << VehRefR) >> VehCamR
 var config bool  bFighterGazeSteer;  // controller mode, Assault's space fighters: the ship turns toward your gaze (the steering crosshair), banking into the turn; hold the left stick click for freelook
 var config float FighterGazeGain;    // ... turn rate per degree the crosshair is off the nose (deg/s per deg)
 var config float FighterBankPerDeg;  // ... bank (deg) per degree the crosshair is to the side, up to FighterMaxBank
-var config float FighterMaxBank;
+var config float FighterMaxBank;    // ... the most it banks (deg)
 var vector FighterAimDir;            // the steering crosshair's direction (world): your gaze, or held there in freelook
 var bool   bFighterAimSet;
 var float  DebugFreelookUntil;        // debug: VRFighterAim holds the crosshair (as freelook) until then
@@ -154,10 +156,10 @@ var array<float> TunedRPS;
 var array<byte>  TunedInstant;
 var config bool  bVehicleLaser;     // in vehicles: the laser from the gun's muzzle (else a crosshair at its hit point)
 var config bool  bLaser;            // aiming laser from the muzzle to whatever the gun points at
-var config float LaserRange;
+var config float LaserRange;        // how far the laser reaches (uu)
 var config float LaserDotSize;      // dot size, as a fraction of the distance (constant angular size)
 var config float LaserBrightness;   // 0..1 (additive, so this is its translucency)
-var config float LaserWidth;
+var config float LaserWidth;        // the laser beam's width (uu)
 var config float LaserFadeIn;       // seconds to fade back in after firing stops (hidden while firing)
 var float LaserLastFire;
 var VRLaser Laser;
@@ -218,7 +220,7 @@ var float RecoilAmt, RecoilShown, RecoilBack, RecoilUp, RecoilAt;
 var float RecoilNFT[2];          // each fire mode's NextFireTime: it moves on with every shot
 var Weapon RecoilWeapon;
 var config bool  bAutoHeight;       // seated-friendly: map your head height at spawn/recenter to StandEyeMeters
-var config float StandEyeMeters;
+var config float StandEyeMeters;    // ... the eye height that maps to (m)
 var config bool  bMatchGameHeight;   // eyes at the pawn's stock eye height (UT2004: 44 + 38 = 82 uu), whatever your real height
 var config float EyeHeightBonus;     // uu added to that (VRHeight)
 var float HeightOffset;
@@ -236,14 +238,14 @@ var float WornTime, LastPacketTimeH;
 var vector MotionRefPos, MotionRefF;   // the head pose half a second ago
 var float MotionRefTime, LastHeadMotion;
 var bool  bOldMenu;
-var config bool  bDebugLog;
+var config bool  bDebugLog;         // extra diagnostics in UT2004.log
 var config string TestExec;         // debug: console command run once ~3 s after spawn
 var bool bTestExecDone;
 var string TestExecNext;
 var string TestExecCarry;           // the rest of a TestExec sequence across a level change             // TestExec "a|b|c": the rest, one command every ~90 frames (works while paused)
 var int TestExecFrames;
 
-var config bool  bCalib;
+var config bool  bCalib;            // debug: projection test markers at known angles
 var config bool  bCalibGun;         // debug: mark the muzzle and candidate barrel lines in the eye images            // projection test: 3D markers at known angles + 2D boxes where the math predicts them
 var VRArcDot CalibDots[5];
 var vector CalibPts[5];
