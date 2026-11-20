@@ -35,8 +35,13 @@
 static FILE* g_log = nullptr;
 static std::string g_dir;   // folder of this dll (the game's System folder)
 
+// VR only for a game started by Play-VR.bat (-ini=UT2004VR_Game.ini); any other launch of UT2004 gets the real
+// d3d9 untouched: no hooks, no SteamVR, no log
+static bool g_vrLaunch = false;
+
 static void Log(const char* fmt, ...)
 {
+	if (!g_vrLaunch) return;
 	if (!g_log)
 	{
 		std::string p = g_dir + "UT2004VR_proxy.log";
@@ -1940,6 +1945,11 @@ static HRESULT STDMETHODCALLTYPE hk_CreateDevice(IDirect3D9* d3d, UINT ad, D3DDE
 // ---------------------------------------------------------------------------
 extern "C" IDirect3D9* WINAPI Proxy_Direct3DCreate9(UINT sdk)
 {
+	if (!g_vrLaunch)
+	{
+		PFN_Create9 fn = (PFN_Create9)Real("Direct3DCreate9");
+		return fn ? fn(sdk) : nullptr;
+	}
 	ReadConfig();
 	IDirect3D9* d3d = nullptr;
 	if (g_wantEx)
@@ -1966,6 +1976,8 @@ extern "C" HRESULT WINAPI Proxy_Direct3DCreate9Ex(UINT sdk, IDirect3D9Ex** out)
 {
 	PFN_Create9Ex fn = (PFN_Create9Ex)Real("Direct3DCreate9Ex");
 	HRESULT hr = fn ? fn(sdk, out) : E_FAIL;
+	if (!g_vrLaunch)
+		return hr;
 	if (SUCCEEDED(hr) && out && *out)
 	{
 		void* p = Patch(*out, 16, (void*)hk_CreateDevice);
@@ -1994,6 +2006,9 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID)
 		GetModuleFileNameA(inst, p, MAX_PATH);
 		g_dir = p;
 		g_dir = g_dir.substr(0, g_dir.find_last_of("\\/") + 1);
+		std::string cl = GetCommandLineA();
+		for (char& c : cl) c = (char)tolower((unsigned char)c);
+		g_vrLaunch = cl.find("ut2004vr_game.ini") != std::string::npos;
 	}
 	else if (reason == DLL_PROCESS_DETACH)
 	{

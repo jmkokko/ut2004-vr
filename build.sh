@@ -7,11 +7,8 @@ rm -rf "$LAB/UT2004VR"
 cp -r "$HERE/UT2004VR" "$LAB/UT2004VR"
 grep -q '^EditPackages=UT2004VR' "$LAB/System/UT2004.ini" || \
   sed -i 's/^\(EditPackages=AssaultBP\)\r\?$/\1\r\nEditPackages=UT2004VR\r/' "$LAB/System/UT2004.ini"
-# UT's console -> VRConsole: adds the VR mutator to every game the menus start, and runs the headset menu in the
-# main menus (only the [Engine.Engine] line; the other Console= line is [Engine.Console]'s hot key section)
-sed -i 's/^Console=XInterface.ExtendedConsole\r\?$/Console=UT2004VR.VRConsole\r/' "$LAB/System/UT2004.ini"
-# the startup intro (a Matinee cinematic) runs with the VR mutator too, so it plays in the headset in 3D
-sed -i 's/^LocalMap=NvidiaLogo.ut2\r\?$/LocalMap=NvidiaLogo.ut2?Mutator=UT2004VR.VRMutator\r/' "$LAB/System/UT2004.ini"
+# the VR settings file Play-VR.bat starts the game with (made by Play-VR.bat itself when missing): VRConsole and the
+# intro with the VR mutator. UT2004.ini stays stock apart from EditPackages, so a normal launch is plain UT2004.
 rm -f "$LAB/System/UT2004VR.u"
 cd "$LAB/System"
 ./UCC.exe make -silent 2>&1 | tr -d '\r' | grep -v '^$' | tail -40
