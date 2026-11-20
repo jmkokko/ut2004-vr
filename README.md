@@ -65,7 +65,7 @@ relative to that, e.g. `VRHeight 10` ≈ +19 cm, saved. `VRScale <uu per m>` (de
 
 HUD (UT2004's own icons and digits): health cross + health lower left, ammo + the current ammo icon lower right,
 adrenaline pill + adrenaline upper right, and frags / spread to the leader / rank upper left, the match clock top centre (time left, or time played without a time limit; `bVRClock`); head-locked at a real stereo depth
-(`bVRHud`, `HudDistance=2.5` m, `HudSpread=2.9` overall, `HudSize=0.85` digit and icon size, `HudTopUp=0.56` and `HudBottomUp=-0.56` row heights, `HudLower=0.05` moves the whole HUD down, messages and scoreboard included); while dead it says how to respawn.
+(`bVRHud`, `HudDistance=2.5` m, `HudSpread=1.9` overall, `HudSize=0.85` digit and icon size, `HudTopUp=0.44` and `HudBottomUp=-0.65` row heights, `HudLower=0.05` moves the whole HUD down, messages and scoreboard included); while dead it says how to respawn.
 With `bVROriginalHud=True` (the default) the headset shows the game type's own HUD instead of these items: Assault's
 round and reinforcement timers, Onslaught's radar map and node row, the team health and ammo widgets... It is drawn
 by a hidden copy of that HUD and captured like the scoreboard, as a flat layer where the VR HUD's corners are

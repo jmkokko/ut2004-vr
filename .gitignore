@@ -5,3 +5,4 @@ build/
 *.exp
 third_party/openvr/
 __pycache__/
+dist/

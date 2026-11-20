@@ -5,7 +5,7 @@ rem        Play-VR.bat MapName    straight into a VR deathmatch on that map, e.g
 rem
 rem VR runs only when the game is started from here: it uses its own settings file, UT2004VR_Game.ini, made on
 rem the first run from your UT2004.ini (your video, audio and game settings) with UT2004VR's console and a
-rem windowed desktop mirror. Starting UT2004 any other way is plain, unmodded UT2004.
+rem windowed desktop mirror (1280x720 if the window was still at the 640x480 default). Starting UT2004 any other way is plain, unmodded UT2004.
 rem To start the VR settings over from your current UT2004.ini, delete UT2004VR_Game.ini.
 cd /d "%~dp0"
 if not exist UT2004.exe (
@@ -36,6 +36,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$t = $t -replace '^Console=XInterface\.ExtendedConsole\s*$', 'Console=UT2004VR.VRConsole';" ^
   "$t = $t -replace '^LocalMap=NvidiaLogo\.ut2\s*$', 'LocalMap=NvidiaLogo.ut2?Mutator=UT2004VR.VRMutator';" ^
   "$t = $t -replace '^StartupFullscreen=True\s*$', 'StartupFullscreen=False';" ^
+  "$t = $t -replace '^WindowedViewportX=640\s*$', 'WindowedViewportX=1280' -replace '^WindowedViewportY=480\s*$', 'WindowedViewportY=720';" ^
   "if (-not ($t -match '^Console=UT2004VR\.VRConsole$')) { exit 1 };" ^
   "Set-Content -LiteralPath 'UT2004VR_Game.ini' -Value $t -Encoding Default"
 exit /b %errorlevel%
