@@ -7,7 +7,7 @@ menus floating in front of you.
 [![Latest release](https://img.shields.io/github/v/release/jmkokko/ut2004-vr)](https://github.com/jmkokko/ut2004-vr/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![Real play in the headset: a Link Gun kill, the gun moving in the hand, UT2004's HUD and weapon bar along the bottom](docs/images/gameplay.webp)
+![Real play in the headset: moving through a room with the Flak Cannon in hand and a flak kill, with UT2004's HUD and weapon bar along the bottom](docs/images/gameplay.webp)
 
 <sub>Real play in the headset, recorded from the desktop mirror (one eye).</sub>
 
