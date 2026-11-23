@@ -275,6 +275,10 @@ simulated function SyncShadow()
 	Shadow.bShowWeaponInfo = bShowWeaponInfo;
 	Shadow.bShowPersonalInfo = bShowPersonalInfo;
 	Shadow.bShowPoints = bShowPoints;
+	// its own scoreboard of the game type's class: without one HudCDeathMatch.UpdateRankAndSpread returns before
+	// drawing your frags, the spread to the leader and your rank (top left). Its own, as a HUD destroys its scoreboard.
+	if ( ScoreBoard != None && (Shadow.ScoreBoard == None || Shadow.ScoreBoard.Class != ScoreBoard.Class) )
+		Shadow.SetScoreBoardClass(ScoreBoard.Class);
 	Shadow.bShowWeaponBar = bShowWeaponBar;
 	Shadow.bSmallWeaponBar = bSmallWeaponBar;
 	Shadow.bShowPortrait = bShowPortrait;
