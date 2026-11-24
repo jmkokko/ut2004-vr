@@ -91,5 +91,5 @@ defaultproperties
 	GroupName="UT2004VR"
 	FriendlyName="UT2004 VR"
 	Description="Play in VR: head-tracked view, guns in your hands, VR HUD and menus (needs the UT2004VR d3d9.dll and SteamVR)."
-	Version="0.1.1"
+	Version="0.1.2"
 }
